@@ -1,0 +1,70 @@
+const express = require('express');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
+const env = require('../config/env');
+const { pool } = require('../db/pool');
+const { authenticateJWT } = require('../middleware/auth');
+const { loginSchema, validate } = require('../middleware/validators');
+
+const router = express.Router();
+
+router.post('/login', validate(loginSchema), async (req, res, next) => {
+  try {
+    const { email, password, role } = req.validated;
+    const [rows] = await pool.query(
+      'SELECT id, email, password_hash, full_name, role, branch FROM users WHERE email = ? AND role = ? LIMIT 1',
+      [email, role]
+    );
+    if (rows.length === 0) {
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
+    const user = rows[0];
+    const match = await bcrypt.compare(password, user.password_hash);
+    if (!match) {
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
+    const token = jwt.sign(
+      { id: user.id, role: user.role, name: user.full_name },
+      env.JWT_SECRET,
+      { expiresIn: env.JWT_EXPIRES_IN }
+    );
+    await pool.query('UPDATE users SET last_login_at = NOW() WHERE id = ?', [user.id]);
+    return res.json({
+      success: true,
+      data: {
+        token,
+        user: {
+          id: user.id,
+          email: user.email,
+          name: user.full_name,
+          role: user.role,
+          branch: user.branch || null,
+        },
+        expiresIn: env.JWT_EXPIRES_IN,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get('/me', authenticateJWT, async (req, res, next) => {
+  try {
+    const [rows] = await pool.query(
+      'SELECT id, email, full_name AS name, role, branch, created_at AS createdAt, last_login_at AS lastLoginAt FROM users WHERE id = ? LIMIT 1',
+      [req.user.id]
+    );
+    if (rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    return res.json({ success: true, data: rows[0] });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/logout', authenticateJWT, (_req, res) => {
+  return res.json({ success: true, data: { message: 'Logged out' } });
+});
+
+module.exports = router;
