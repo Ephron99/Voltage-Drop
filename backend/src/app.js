@@ -7,6 +7,7 @@ const authRouter = require('./routes/auth');
 const usersRouter = require('./routes/users');
 const masterRouter = require('./routes/master');
 const progressRouter = require('./routes/progress-entries');
+const managementRouter = require('./routes/management');
 
 const app = express();
 
@@ -32,6 +33,7 @@ app.use('/api/auth', authRouter);
 app.use('/api/users', usersRouter);
 app.use('/api/master', masterRouter);
 app.use('/api/progress', progressRouter);
+app.use('/api/management', managementRouter);
 
 app.use((req, res) => {
   res.status(404).json({ error: 'Not Found', path: req.originalUrl });

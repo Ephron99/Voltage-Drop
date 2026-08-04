@@ -43,7 +43,7 @@ const loginSchema = z.object({
 
 type LoginFormValues = z.infer<typeof loginSchema>;
 
-const availableRoles: UserRole[] = ["site_engineer", "branch_manager", "senior_management", "it_engineer"];
+const availableRoles: UserRole[] = ["site_engineer", "branch_manager", "planning", "senior_management", "it_engineer"];
 
 const roleIcons: Record<UserRole, React.ReactNode> = {
   site_engineer: <Shield className="w-4 h-4" />,
@@ -116,6 +116,7 @@ export default function Login() {
     const demoUsers = {
       site_engineer: { email: "engineer@site.com", password: "password123" },
       branch_manager: { email: "manager@branch.com", password: "password123" },
+      planning: { email: "planner@company.com", password: "password123" },
       senior_management: { email: "director@company.com", password: "password123" },
       it_engineer: { email: "admin@it.com", password: "password123" },
     };
@@ -272,7 +273,7 @@ export default function Login() {
               transition={{ delay: 0.5 }}
               className="card p-1.5 bg-gradient-to-br from-slate-100 to-slate-50 border-slate-200"
             >
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-1">
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-1">
                 {availableRoles.map((role) => (
                   <button
                     key={role}
@@ -405,7 +406,7 @@ export default function Login() {
               <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 text-center">
                 Quick Demo Login
               </p>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-1.5">
                 <button
                   type="button"
                   onClick={() => handleDemoLogin("site_engineer")}
@@ -431,6 +432,19 @@ export default function Login() {
                     <ShieldCheck className="w-3.5 h-3.5" />
                   )}
                   Branch Mgr.
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleDemoLogin("planning")}
+                  disabled={demoLoading !== null}
+                  className="py-2 px-2 rounded-xl text-[10px] font-semibold bg-violet-50 text-violet-700 border border-violet-200/60 hover:bg-violet-100 transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {demoLoading === "planning" ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <FileText className="w-3.5 h-3.5" />
+                  )}
+                  Planning
                 </button>
                 <button
                   type="button"

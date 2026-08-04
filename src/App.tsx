@@ -12,6 +12,11 @@ import ManagementRecords from "@/pages/senior-management/ManagementRecords";
 import ITEngineerDashboard from "@/pages/it-engineer/ITEngineerDashboard";
 import UserManagement from "@/pages/it-engineer/UserManagement";
 import SystemMaintenance from "@/pages/it-engineer/SystemMaintenance";
+import PlanningDashboard from "@/pages/planning/PlanningDashboard";
+import Projects from "@/pages/planning/Projects";
+import ProjectDetail from "@/pages/planning/ProjectDetail";
+import NetworkAssets from "@/pages/planning/NetworkAssets";
+import ProgressMonitor from "@/pages/planning/ProgressMonitor";
 import { ProtectedRoute, RedirectIfAuthenticated } from "@/components/ProtectedRoute";
 import { useAuthStore, roleHomeRoute } from "@/store/authStore";
 import { Zap } from "lucide-react";
@@ -186,6 +191,48 @@ export default function App() {
           element={
             <ProtectedRoute allowedRoles={["it_engineer"]}>
               <SystemMaintenance />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Planning / Management Portal Routes */}
+        <Route
+          path="/planning"
+          element={
+            <ProtectedRoute allowedRoles={["planning", "senior_management", "trusted_admin"]}>
+              <PlanningDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/planning/projects"
+          element={
+            <ProtectedRoute allowedRoles={["planning", "senior_management", "trusted_admin"]}>
+              <Projects />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/planning/projects/:id"
+          element={
+            <ProtectedRoute allowedRoles={["planning", "senior_management", "trusted_admin"]}>
+              <ProjectDetail />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/planning/assets"
+          element={
+            <ProtectedRoute allowedRoles={["planning", "trusted_admin"]}>
+              <NetworkAssets />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/planning/monitor"
+          element={
+            <ProtectedRoute allowedRoles={["planning", "senior_management", "trusted_admin"]}>
+              <ProgressMonitor />
             </ProtectedRoute>
           }
         />

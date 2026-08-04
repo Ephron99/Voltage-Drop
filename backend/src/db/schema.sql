@@ -55,6 +55,128 @@ CREATE TABLE IF NOT EXISTS transformers (
     FOREIGN KEY (line_id) REFERENCES `lines`(id)
 );
 
+-- ============================================================
+-- Management Portal Tables
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS projects (
+    id CHAR(36) PRIMARY KEY,
+    code VARCHAR(50) UNIQUE NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    status ENUM('planning', 'active', 'on_hold', 'completed', 'cancelled') DEFAULT 'planning',
+    start_date DATE NULL,
+    end_date DATE NULL,
+    total_budget DECIMAL(15,2) DEFAULT 0,
+    created_by CHAR(36) NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (created_by) REFERENCES users(id),
+    INDEX idx_project_status (status)
+);
+
+CREATE TABLE IF NOT EXISTS scopes (
+    id CHAR(36) PRIMARY KEY,
+    project_id CHAR(36) NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    status ENUM('draft', 'active', 'completed', 'cancelled') DEFAULT 'draft',
+    planned_km DECIMAL(10,3) DEFAULT 0,
+    planned_transformers INT DEFAULT 0,
+    budget_allocated DECIMAL(15,2) DEFAULT 0,
+    location_id CHAR(36) NULL,
+    created_by CHAR(36) NOT NULL,
+    approved_by CHAR(36) NULL,
+    approved_at DATETIME NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
+    FOREIGN KEY (location_id) REFERENCES locations(id),
+    FOREIGN KEY (created_by) REFERENCES users(id),
+    FOREIGN KEY (approved_by) REFERENCES users(id),
+    INDEX idx_scope_project (project_id),
+    INDEX idx_scope_status (status)
+);
+
+CREATE TABLE IF NOT EXISTS branches (
+    id CHAR(36) PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    line_id CHAR(36) NOT NULL,
+    length_km DECIMAL(10,3) DEFAULT 0,
+    conductor_type VARCHAR(100),
+    status ENUM('planned', 'under_construction', 'energized', 'decommissioned') DEFAULT 'planned',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (line_id) REFERENCES `lines`(id) ON DELETE CASCADE,
+    INDEX idx_branch_line (line_id)
+);
+
+CREATE TABLE IF NOT EXISTS tasks (
+    id CHAR(36) PRIMARY KEY,
+    project_id CHAR(36) NOT NULL,
+    scope_id CHAR(36) NULL,
+    title VARCHAR(255) NOT NULL,
+    description TEXT,
+    status ENUM('pending', 'assigned', 'in_progress', 'completed', 'cancelled') DEFAULT 'pending',
+    priority ENUM('low', 'medium', 'high', 'critical') DEFAULT 'medium',
+    assigned_to CHAR(36) NULL,
+    assigned_by CHAR(36) NOT NULL,
+    line_id CHAR(36) NULL,
+    transformer_id CHAR(36) NULL,
+    planned_start_date DATE NULL,
+    planned_end_date DATE NULL,
+    actual_start_date DATE NULL,
+    actual_end_date DATE NULL,
+    progress_pct INT DEFAULT 0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
+    FOREIGN KEY (scope_id) REFERENCES scopes(id) ON DELETE SET NULL,
+    FOREIGN KEY (assigned_to) REFERENCES users(id),
+    FOREIGN KEY (assigned_by) REFERENCES users(id),
+    FOREIGN KEY (line_id) REFERENCES `lines`(id),
+    FOREIGN KEY (transformer_id) REFERENCES transformers(id),
+    INDEX idx_task_project (project_id),
+    INDEX idx_task_scope (scope_id),
+    INDEX idx_task_assignee (assigned_to),
+    INDEX idx_task_status (status)
+);
+
+CREATE TABLE IF NOT EXISTS budget_items (
+    id CHAR(36) PRIMARY KEY,
+    project_id CHAR(36) NOT NULL,
+    scope_id CHAR(36) NULL,
+    category VARCHAR(100) NOT NULL,
+    description VARCHAR(500),
+    planned_amount DECIMAL(15,2) NOT NULL DEFAULT 0,
+    spent_amount DECIMAL(15,2) DEFAULT 0,
+    committed_amount DECIMAL(15,2) DEFAULT 0,
+    status ENUM('planned', 'active', 'exhausted', 'closed') DEFAULT 'planned',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
+    FOREIGN KEY (scope_id) REFERENCES scopes(id) ON DELETE SET NULL,
+    INDEX idx_budget_project (project_id),
+    INDEX idx_budget_category (category)
+);
+
+CREATE TABLE IF NOT EXISTS fund_transactions (
+    id CHAR(36) PRIMARY KEY,
+    project_id CHAR(36) NOT NULL,
+    type ENUM('allocation', 'disbursement', 'commitment', 'refund') NOT NULL,
+    amount DECIMAL(15,2) NOT NULL,
+    description VARCHAR(500),
+    reference VARCHAR(100),
+    transaction_date DATE NOT NULL,
+    created_by CHAR(36) NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
+    FOREIGN KEY (created_by) REFERENCES users(id),
+    INDEX idx_fund_project (project_id),
+    INDEX idx_fund_type (type),
+    INDEX idx_fund_date (transaction_date)
+);
+
 CREATE TABLE IF NOT EXISTS progress_entries (
     id CHAR(36) PRIMARY KEY,
     entry_date DATE NOT NULL,
