@@ -20,10 +20,10 @@ import { projectStatusLabels } from "@/types";
 import type { Project, ProjectStatus, ProjectFormData } from "@/types";
 
 const navItems = [
-  { label: "Dashboard", path: "/planning", icon: <LayoutDashboard className="w-4 h-4" /> },
-  { label: "Projects", path: "/planning/projects", icon: <FolderKanban className="w-4 h-4" /> },
-  { label: "Network Assets", path: "/planning/assets", icon: <Network className="w-4 h-4" /> },
-  { label: "Progress Monitor", path: "/planning/monitor", icon: <TrendingUp className="w-4 h-4" /> },
+  { label: "Dashboard", path: "/hub-manager", icon: <LayoutDashboard className="w-4 h-4" /> },
+  { label: "Projects", path: "/hub-manager/projects", icon: <FolderKanban className="w-4 h-4" /> },
+  { label: "Network Assets", path: "/hub-manager/assets", icon: <Network className="w-4 h-4" /> },
+  { label: "Progress Monitor", path: "/hub-manager/monitor", icon: <TrendingUp className="w-4 h-4" /> },
 ];
 
 const statusColors: Record<ProjectStatus, string> = {
@@ -114,7 +114,7 @@ export default function Projects() {
 
   return (
     <div className="min-h-screen bg-electric-grid">
-      <Navbar role="planning" navItems={navItems} title="Management Portal" />
+      <Navbar role="hub_manager" navItems={navItems} title="Hub Manager Portal" />
 
       <main className="container py-5 space-y-5">
         <motion.div
@@ -219,7 +219,7 @@ export default function Projects() {
                       </td>
                       <td className="px-4 py-3">
                         <Link
-                          to={`/planning/projects/${project.id}`}
+              to={`/hub-manager/projects/${project.id}`}
                           className="text-sm font-semibold text-slate-900 hover:text-violet-700"
                         >
                           {project.name}
@@ -258,7 +258,7 @@ export default function Projects() {
                       <td className="px-4 py-3">
                         <div className="flex items-center justify-center gap-1">
                           <Link
-                            to={`/planning/projects/${project.id}`}
+                to={`/hub-manager/projects/${project.id}`}
                             className="p-1.5 rounded-lg text-slate-400 hover:text-violet-700 hover:bg-violet-50 transition-colors"
                             title="View Details"
                           >

@@ -98,7 +98,7 @@ export default function ReviewEntry() {
         <Navbar
           role="branch_manager"
           navItems={navItems}
-          title="Branch Manager Portal"
+          title="Hub Manager Portal"
         />
         <main className="container py-16 max-w-md text-center space-y-4 mx-auto">
           <div className="flex items-center justify-center w-20 h-20 rounded-full bg-slate-100 text-slate-400 mx-auto">
@@ -168,7 +168,7 @@ export default function ReviewEntry() {
       showToast(
         "success",
         "Entry Rejected",
-        "Site Engineer has been notified and will revise the entry based on your comments."
+        "Branch Manager has been notified and will revise the entry based on your comments."
       );
       setTimeout(() => navigate("/branch-manager"), 1800);
     } else {
@@ -194,7 +194,7 @@ export default function ReviewEntry() {
       <Navbar
         role="branch_manager"
         navItems={navItems}
-        title="Branch Manager Portal"
+        title="Hub Manager Portal"
       />
 
       <main className="container py-8 max-w-5xl space-y-6">
@@ -385,7 +385,7 @@ export default function ReviewEntry() {
                     <p className="font-semibold text-slate-800 text-sm leading-tight">
                       {entry.siteEngineerName}
                     </p>
-                    <p className="text-xs text-slate-500">Site Engineer</p>
+                    <p className="text-xs text-slate-500">Branch Manager</p>
                   </div>
                 </div>
                 {entry.submittedAt && (
@@ -497,9 +497,9 @@ export default function ReviewEntry() {
                   <div className="text-xs text-amber-800 leading-relaxed space-y-1">
                     <p className="font-semibold">This will:</p>
                     <ul className="list-disc space-y-0.5 pl-4">
-                      <li>Send the entry back to the Site Engineer with your comments</li>
+                      <li>Send the entry back to the Branch Manager with your comments</li>
                       <li>Mark the status as <b>Rejected</b> visible to all parties</li>
-                      <li>Notify the Site Engineer via their dashboard</li>
+                      <li>Notify the Branch Manager via their dashboard</li>
                     </ul>
                   </div>
                 </div>

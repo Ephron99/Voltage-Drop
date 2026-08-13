@@ -30,17 +30,17 @@ import { ProgressEntryDetail } from "@/components/ProgressEntryDetail";
 const navItems = [
   {
     label: "Dashboard",
-    path: "/site-engineer",
+    path: "/branch-manager",
     icon: <LayoutDashboard className="w-4 h-4" />,
   },
   {
     label: "New Entry",
-    path: "/site-engineer/entry",
+    path: "/branch-manager/entry",
     icon: <FileEdit className="w-4 h-4" />,
   },
   {
-    label: "History",
-    path: "/site-engineer/history",
+    label: "My History",
+    path: "/branch-manager/history",
     icon: <History className="w-4 h-4" />,
   },
 ];
@@ -54,7 +54,7 @@ const statusFilters: (EntryStatus | "all")[] = [
   "rejected",
 ];
 
-type SortField = "entryDate" | "status" | "completedKm";
+type SortField = "entryDate" | "status" | "progressPct";
 type SortDir = "asc" | "desc";
 
 export default function SubmissionHistory() {
@@ -118,8 +118,8 @@ export default function SubmissionHistory() {
         case "status":
           cmp = a.status.localeCompare(b.status);
           break;
-        case "completedKm":
-          cmp = a.completedKm - b.completedKm;
+        case "progressPct":
+          cmp = a.progressPct - b.progressPct;
           break;
       }
       return sortDir === "asc" ? cmp : -cmp;
@@ -156,7 +156,7 @@ export default function SubmissionHistory() {
   const handleQuickSubmit = async (entry: ProgressEntry) => {
     if (
       confirm(
-        `Submit entry dated ${entry.entryDate} for review by Branch Manager?`
+        `Submit entry dated ${entry.entryDate} for review by Hub Manager?`
       )
     ) {
       await submitEntry(entry.id);
@@ -187,9 +187,9 @@ export default function SubmissionHistory() {
   return (
     <div className="min-h-screen bg-electric-grid">
       <Navbar
-        role="site_engineer"
+        role="branch_manager"
         navItems={navItems}
-        title="Site Engineer Portal"
+        title="Branch Manager Portal"
       />
 
       <main className="container py-8 space-y-6">
@@ -206,7 +206,7 @@ export default function SubmissionHistory() {
               Track status of all your progress entries, from draft to published
             </p>
           </div>
-          <Link to="/site-engineer/entry" className="btn-primary">
+          <Link to="/branch-manager/entry" className="btn-primary">
             <FileEdit className="w-4.5 h-4.5" />
             New Progress Entry
           </Link>
@@ -313,16 +313,16 @@ export default function SubmissionHistory() {
                   </th>
                   <th className="text-right pr-4 pb-3">
                     <button
-                      onClick={() => toggleSort("completedKm")}
+                      onClick={() => toggleSort("progressPct")}
                       className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-slate-500 hover:text-slate-700 ml-auto transition-colors"
                     >
-                      Completed
+                      Progress
                       <ArrowUpDown
                         className={`w-3 h-3 transition-transform ${
-                          sortField === "completedKm" && sortDir === "asc"
+                          sortField === "progressPct" && sortDir === "asc"
                             ? "rotate-180"
                             : ""
-                        } ${sortField === "completedKm" ? "text-brand-700" : ""}`}
+                        } ${sortField === "progressPct" ? "text-brand-700" : ""}`}
                       />
                     </button>
                   </th>
@@ -363,7 +363,7 @@ export default function SubmissionHistory() {
                           </p>
                           {!search && statusFilter === "all" && (
                             <Link
-                              to="/site-engineer/entry"
+                              to="/branch-manager/entry"
                               className="mt-2 btn-primary text-sm py-2 px-4"
                             >
                               <FileEdit className="w-4 h-4" />
@@ -425,9 +425,9 @@ export default function SubmissionHistory() {
                           </td>
                           <td className="py-4 pr-4 text-right align-top">
                             <p className="font-display text-lg font-bold text-brand-800 leading-none">
-                              {entry.completedKm.toFixed(2)}
+                              {entry.progressPct.toFixed(1)}%
                             </p>
-                            <p className="text-[11px] text-slate-500 mt-0.5">km laid</p>
+                            <p className="text-[11px] text-slate-500 mt-0.5">progress</p>
                             <div className="mt-2 inline-flex flex-wrap justify-end gap-0.5">
                               {["I", "T", "Te", "C"].map((abbr, idx) => {
                                 const val =
@@ -468,7 +468,7 @@ export default function SubmissionHistory() {
                                 <Eye className="w-4 h-4" />
                               </button>
                               <Link
-                                to={`/site-engineer/entry/${entry.id}`}
+                              to={`/branch-manager/entry/${entry.id}`}
                                 className={`p-2 rounded-lg transition-colors ${
                                   canEdit
                                     ? "text-slate-500 hover:text-amber-700 hover:bg-amber-50"
@@ -601,7 +601,7 @@ export default function SubmissionHistory() {
                 {["draft", "rejected"].includes(viewingEntry.status) && (
                   <div className="mt-6 pt-5 border-t border-slate-200/60 flex flex-col sm:flex-row gap-3 justify-end">
                     <Link
-                      to={`/site-engineer/entry/${viewingEntry.id}`}
+                      to={`/branch-manager/entry/${viewingEntry.id}`}
                       onClick={() => setViewingEntry(null)}
                       className="btn-secondary justify-center sm:justify-start"
                     >

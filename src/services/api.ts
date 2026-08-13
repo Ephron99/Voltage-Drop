@@ -2,6 +2,7 @@ import axios, { AxiosInstance, InternalAxiosRequestConfig, AxiosResponse } from 
 import type {
   User,
   UserRole,
+  Hub,
   LoginFormData,
   Location,
   Line,
@@ -97,6 +98,7 @@ interface NewUserData {
   name: string;
   role: UserRole;
   branch?: string;
+  hubId?: string;
   password: string;
 }
 
@@ -138,8 +140,8 @@ export const masterApi = {
     return response.data.data;
   },
 
-  getLines: async (locationId?: string): Promise<Line[]> => {
-    const params = locationId ? { locationId } : undefined;
+  getLines: async (branchId?: string): Promise<Line[]> => {
+    const params = branchId ? { branchId } : undefined;
     const response = await api.get<ApiResponse<Line[]>>("/master/lines", { params });
     return response.data.data;
   },
@@ -164,12 +166,12 @@ export const masterApi = {
     await api.delete<ApiResponse<void>>(`/master/locations/${id}`);
   },
 
-  createLine: async (data: { name: string; voltageLevel: string; locationId: string }): Promise<Line> => {
+  createLine: async (data: { name: string; voltageLevel: string; branchId: string }): Promise<Line> => {
     const response = await api.post<ApiResponse<Line>>("/master/lines", data);
     return response.data.data;
   },
 
-  updateLine: async (id: string, data: Partial<{ name: string; voltageLevel: string; locationId: string }>): Promise<Line> => {
+  updateLine: async (id: string, data: Partial<{ name: string; voltageLevel: string; branchId: string }>): Promise<Line> => {
     const response = await api.patch<ApiResponse<Line>>(`/master/lines/${id}`, data);
     return response.data.data;
   },
@@ -348,8 +350,8 @@ export const managementApi = {
   },
 
   // Branches
-  listBranches: async (lineId?: string): Promise<Branch[]> => {
-    const params = lineId ? { lineId } : undefined;
+  listBranches: async (hubId?: string): Promise<Branch[]> => {
+    const params = hubId ? { hubId } : undefined;
     const response = await api.get<ApiResponse<Branch[]>>("/management/branches", { params });
     return response.data.data;
   },
@@ -372,5 +374,31 @@ export const managementApi = {
   getMonitorData: async (projectId: string): Promise<MonitorData> => {
     const response = await api.get<ApiResponse<MonitorData>>(`/management/monitor/${projectId}`);
     return response.data.data;
+  },
+};
+
+export const hubsApi = {
+  list: async (): Promise<Hub[]> => {
+    const response = await api.get<ApiResponse<Hub[]>>("/hubs");
+    return response.data.data;
+  },
+
+  get: async (id: string): Promise<Hub> => {
+    const response = await api.get<ApiResponse<Hub>>(`/hubs/${id}`);
+    return response.data.data;
+  },
+
+  create: async (data: { name: string; region: string }): Promise<Hub> => {
+    const response = await api.post<ApiResponse<Hub>>("/hubs", data);
+    return response.data.data;
+  },
+
+  update: async (id: string, data: Partial<{ name: string; region: string }>): Promise<Hub> => {
+    const response = await api.patch<ApiResponse<Hub>>(`/hubs/${id}`, data);
+    return response.data.data;
+  },
+
+  remove: async (id: string): Promise<void> => {
+    await api.delete<ApiResponse<void>>(`/hubs/${id}`);
   },
 };

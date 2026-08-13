@@ -181,13 +181,10 @@ export function ProgressEntryDetail({
           </div>
           <div className="flex-1">
             <p className="text-[11px] font-semibold uppercase tracking-wider text-brand-700">
-              Completed Kilometers
+              Progress Percentage
             </p>
             <p className="font-display text-2xl font-bold text-brand-900 leading-none">
-              {entry.completedKm.toFixed(3)}
-              <span className="ml-1.5 text-sm font-medium text-brand-700">
-                km
-              </span>
+              {entry.progressPct.toFixed(1)}%
             </p>
           </div>
         </motion.div>
@@ -242,7 +239,7 @@ export function ProgressEntryDetail({
               <div className="flex items-center gap-2 mb-1">
                 <UserIcon className="w-3.5 h-3.5 text-slate-500" />
                 <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">
-                  Site Engineer
+                  Branch Manager
                 </p>
               </div>
               <p className="text-sm font-semibold text-slate-800">
@@ -273,7 +270,7 @@ export function ProgressEntryDetail({
               <div className="flex items-center gap-2 mb-1">
                 <Eye className="w-3.5 h-3.5 text-emerald-600" />
                 <p className="text-[11px] font-semibold uppercase tracking-wider text-emerald-700">
-                  Branch Manager
+                  Hub Manager
                 </p>
               </div>
               <p className="text-sm font-semibold text-slate-800">

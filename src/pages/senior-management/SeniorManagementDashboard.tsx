@@ -20,11 +20,14 @@ import {
   ChevronDown,
   MessageSquare,
   ThumbsUp,
+  Building2,
+  Globe,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useAuthStore } from "@/store/authStore";
 import { useProgressStore } from "@/store/progressStore";
 import { useMasterDataStore } from "@/store/masterDataStore";
+import { useHubStore } from "@/store/hubStore";
 import { Navbar } from "@/components/Navbar";
 import { StatCard } from "@/components/StatCard";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -32,12 +35,12 @@ import { StatusBadge } from "@/components/StatusBadge";
 const navItems = [
   {
     label: "Executive Dashboard",
-    path: "/management",
+    path: "/senior-manager",
     icon: <LayoutDashboard className="w-4 h-4" />,
   },
   {
     label: "Published Records",
-    path: "/management/records",
+    path: "/senior-manager/records",
     icon: <FileCheck2 className="w-4 h-4" />,
   },
 ];
@@ -56,6 +59,7 @@ export default function SeniorManagementDashboard() {
   const { getLocationName, getLineName, locations } = useMasterDataStore();
   const { fetchEntries } = useProgressStore();
   const { fetchAll, initialized: masterInitialized } = useMasterDataStore();
+  const { fetchHubs, hubs, initialized: hubsInitialized } = useHubStore();
   const [period, setPeriod] = useState<PeriodFilter>("30d");
 
   useEffect(() => {
@@ -63,10 +67,12 @@ export default function SeniorManagementDashboard() {
   }, [fetchEntries]);
 
   useEffect(() => {
-    if (!masterInitialized) {
-      fetchAll();
-    }
+    if (!masterInitialized) fetchAll();
   }, [fetchAll, masterInitialized]);
+
+  useEffect(() => {
+    if (!hubsInitialized) fetchHubs();
+  }, [fetchHubs, hubsInitialized]);
 
   const periodFiltered = useMemo(() => {
     if (period === "all") return rawEntries;
@@ -78,7 +84,11 @@ export default function SeniorManagementDashboard() {
 
   const stats = useMemo(() => {
     const published = rawEntries.filter((e) => e.status === "published");
-    const totalKm = published.reduce((sum, e) => sum + e.completedKm, 0);
+    const avgProgress =
+      published.length > 0
+        ? published.reduce((sum, e) => sum + e.progressPct, 0) /
+          published.length
+        : 0;
     const transformersCommissioned = published.reduce(
       (sum, e) => sum + e.transformersCommissioned,
       0
@@ -97,10 +107,10 @@ export default function SeniorManagementDashboard() {
     );
 
     const estimatedSpend =
-      totalKm * COST_PER_KM_ESTIMATE +
+      (avgProgress / 100) * TOTAL_BUDGET_ESTIMATE +
       transformersCommissioned * COST_PER_TRANSFORMER_ESTIMATE;
     const budgetUtilization = (estimatedSpend / TOTAL_BUDGET_ESTIMATE) * 100;
-    const kmProgress = (totalKm / TOTAL_PLANNED_KM) * 100;
+    const kmProgress = avgProgress;
     const transformerProgress =
       (transformersCommissioned / TOTAL_PLANNED_TRANSFORMERS) * 100;
     const approvalRate =
@@ -117,7 +127,7 @@ export default function SeniorManagementDashboard() {
       publishedCount: published.length,
       submittedCount: rawEntries.filter((e) => e.status === "submitted").length,
       rejectedCount: rawEntries.filter((e) => e.status === "rejected").length,
-      totalKm,
+      avgProgress,
       kmProgress: Math.min(kmProgress, 100),
       transformersCommissioned,
       transformersInstalled,
@@ -145,19 +155,22 @@ export default function SeniorManagementDashboard() {
   );
 
   const locationBreakdown = useMemo(() => {
-    const byLoc: Record<string, { km: number; entries: number }> = {};
+    const byLoc: Record<string, { pct: number; entries: number }> = {};
     for (const e of rawEntries.filter((x) => x.status === "published")) {
-      if (!byLoc[e.locationId]) byLoc[e.locationId] = { km: 0, entries: 0 };
-      byLoc[e.locationId].km += e.completedKm;
+      if (!byLoc[e.locationId]) byLoc[e.locationId] = { pct: 0, entries: 0 };
+      byLoc[e.locationId].pct += e.progressPct;
       byLoc[e.locationId].entries += 1;
     }
     return locations
-      .map((loc) => ({
-        ...loc,
-        km: byLoc[loc.id]?.km || 0,
-        entries: byLoc[loc.id]?.entries || 0,
-      }))
-      .sort((a, b) => b.km - a.km);
+      .map((loc) => {
+        const data = byLoc[loc.id];
+        return {
+          ...loc,
+          pct: data ? data.pct / data.entries : 0,
+          entries: data?.entries || 0,
+        };
+      })
+      .sort((a, b) => b.pct - a.pct);
   }, [rawEntries, locations]);
 
   const pipeline = useMemo(() => {
@@ -173,7 +186,6 @@ export default function SeniorManagementDashboard() {
 
   const [comments, setComments] = useState<Record<string, string>>({});
   const [savedComment, setSavedComment] = useState<string | null>(null);
-
   const handleSaveComment = (entryId: string) => {
     const c = comments[entryId];
     if (c && c.trim().length > 0) {
@@ -198,7 +210,7 @@ export default function SeniorManagementDashboard() {
 
   return (
     <div className="min-h-screen bg-electric-grid">
-      <Navbar role="senior_management" navItems={navItems} title="Senior Management Portal" />
+      <Navbar role="senior_manager" navItems={navItems} title="Senior Manager Portal" />
 
       <main className="container py-5 space-y-5">
         <motion.div
@@ -240,7 +252,7 @@ export default function SeniorManagementDashboard() {
               <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
             </div>
             <Link
-              to="/management/records"
+              to="/senior-manager/records"
               className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-brand-800 px-3.5 py-2 text-xs font-semibold text-white shadow-sm transition-all duration-200 hover:bg-brand-700 hover:shadow-md hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 active:translate-y-0"
             >
               <FileCheck2 className="w-4 h-4" />
@@ -253,7 +265,7 @@ export default function SeniorManagementDashboard() {
           <StatCard
             title="Overall Progress"
             value={`${stats.kmProgress.toFixed(1)}%`}
-            subtitle={`${stats.totalKm.toFixed(2)} km of ${TOTAL_PLANNED_KM} km planned`}
+            subtitle={`Average progress across published entries`}
             icon={<Gauge className="w-5 h-5" />}
             iconBg="bg-brand-50"
             iconColor="text-brand-700"
@@ -335,10 +347,10 @@ export default function SeniorManagementDashboard() {
                   </div>
                   <div className="text-right">
                     <span className="font-display text-sm font-bold text-slate-900">
-                      {stats.totalKm.toFixed(2)} km
+                      {stats.avgProgress.toFixed(1)}%
                     </span>
                     <span className="text-[10px] text-slate-500 ml-1">
-                      / {TOTAL_PLANNED_KM} km
+                      / 100%
                     </span>
                   </div>
                 </div>
@@ -513,7 +525,7 @@ export default function SeniorManagementDashboard() {
                 <div className="flex items-center gap-1.5">
                   <Users className="w-3.5 h-3.5 text-brand-700" />
                   <span className="text-xs font-semibold text-slate-700">
-                    Site Engineers
+                    Branch Managers
                   </span>
                 </div>
                 <span className="font-mono text-xs font-bold text-slate-900">
@@ -542,7 +554,7 @@ export default function SeniorManagementDashboard() {
                   </p>
                   <p className="text-[10px] text-amber-800/90 mt-0.5 leading-relaxed">
                     Commissioning stage has a higher drop-off than expected.
-                    Review transformer testing workflows with branch managers.
+                    Review transformer testing workflows with Hub Managers.
                   </p>
                 </div>
               </div>
@@ -567,9 +579,7 @@ export default function SeniorManagementDashboard() {
 
             <div className="space-y-2.5 max-h-[320px] overflow-y-auto scrollbar-thin pr-1">
               {locationBreakdown.map((loc, i) => {
-                const pct = TOTAL_PLANNED_KM
-                  ? Math.min((loc.km / (TOTAL_PLANNED_KM / locations.length)) * 100, 100)
-                  : 0;
+                const pct = Math.min(loc.pct, 100);
                 return (
                   <div
                     key={loc.id}
@@ -587,9 +597,9 @@ export default function SeniorManagementDashboard() {
                       </div>
                       <div className="text-right shrink-0">
                         <p className="font-display text-sm font-bold text-brand-800 leading-tight">
-                          {loc.km.toFixed(1)}
+                          {loc.pct.toFixed(1)}
                           <span className="text-[10px] text-slate-500 ml-0.5 font-semibold">
-                            km
+                            %
                           </span>
                         </p>
                       </div>
@@ -666,7 +676,7 @@ export default function SeniorManagementDashboard() {
                       <td colSpan={6} className="py-6 text-center text-xs text-slate-500">
                         <Clock className="w-5 h-5 mx-auto mb-1.5 text-slate-300" />
                         No published records yet — data will appear as it is
-                        verified by Branch Managers.
+                        verified by Hub Managers.
                       </td>
                     </tr>
                   )}
@@ -693,10 +703,7 @@ export default function SeniorManagementDashboard() {
                       </td>
                       <td className="py-2.5 pr-3 align-top text-right">
                         <span className="font-display text-xs font-bold text-brand-800">
-                          {entry.completedKm.toFixed(2)}
-                        </span>
-                        <span className="text-[10px] text-slate-400 ml-0.5">
-                          km
+                          {entry.progressPct.toFixed(1)}%
                         </span>
                       </td>
                       <td className="py-2.5 pr-3 align-top text-right">
@@ -756,13 +763,98 @@ export default function SeniorManagementDashboard() {
           </motion.div>
         </div>
 
+        {/* ── Hub Overview ─────────────────────────────────────────── */}
+        {hubs.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4 }}
+            className="card p-4 space-y-4"
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="font-display text-lg font-bold text-slate-900 flex items-center gap-2">
+                  <Globe className="w-4 h-4 text-brand-700" />
+                  Rwanda — Hub Performance Overview
+                </h2>
+                <p className="text-[10px] text-slate-500 mt-0.5">
+                  Nation-wide view · {hubs.length} hubs across all provinces
+                </p>
+              </div>
+              <span className="inline-flex items-center gap-1 rounded-full px-2 py-1 text-[10px] font-semibold bg-brand-50 text-brand-700 border border-brand-200/60">
+                <Activity className="w-3 h-3" />
+                Live
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+              {hubs.map((hub, i) => {
+                const hubEntries = rawEntries.filter((e) => {
+                  // entries don't directly carry hubId; use location-based proxy via published entries
+                  return e.status === "published";
+                });
+                // Hub-specific stats come from the hub.stats if available (from API detail call)
+                // For the list view, we show what the list API returns
+                const totalPublished = rawEntries.filter((e) => e.status === "published").length;
+                const perHubShare = hubs.length > 0 ? Math.round((1 / hubs.length) * totalPublished) : 0;
+                const colors = [
+                  "from-brand-50 to-brand-100 border-brand-200/60 text-brand-800",
+                  "from-emerald-50 to-emerald-100 border-emerald-200/60 text-emerald-800",
+                  "from-amber-50 to-amber-100 border-amber-200/60 text-amber-800",
+                  "from-violet-50 to-violet-100 border-violet-200/60 text-violet-800",
+                  "from-rose-50 to-rose-100 border-rose-200/60 text-rose-800",
+                ];
+                const colorClass = colors[i % colors.length];
+                return (
+                  <motion.div
+                    key={hub.id}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.45 + i * 0.05 }}
+                    className={`rounded-xl bg-gradient-to-br border p-3 space-y-2 ${colorClass}`}
+                  >
+                    <div className="flex items-start gap-2">
+                      <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-white/60 shrink-0">
+                        <Building2 className="w-4 h-4" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-xs font-bold leading-tight truncate">{hub.name}</p>
+                        <p className="text-[9px] opacity-70 leading-tight truncate">{hub.region}</p>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-1 pt-1">
+                      <div className="rounded-lg bg-white/50 p-1.5 text-center">
+                        <p className="font-display text-base font-bold leading-tight">
+                          {hub.branchManagerCount ?? 0}
+                        </p>
+                        <p className="text-[9px] opacity-70 leading-tight">Hub Mgrs</p>
+                      </div>
+                      <div className="rounded-lg bg-white/50 p-1.5 text-center">
+                        <p className="font-display text-base font-bold leading-tight">
+                          {hub.siteEngineerCount ?? 0}
+                        </p>
+                        <p className="text-[9px] opacity-70 leading-tight">Branch Mgrs</p>
+                      </div>
+                    </div>
+                    <div className="rounded-lg bg-white/50 p-1.5 text-center">
+                      <p className="font-display text-sm font-bold leading-tight">
+                        {hub.locationCount ?? 0}
+                      </p>
+                      <p className="text-[9px] opacity-70 leading-tight">Locations</p>
+                    </div>
+                  </motion.div>
+                );
+              })}
+            </div>
+          </motion.div>
+        )}
+
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.45 }}
           className="grid grid-cols-1 md:grid-cols-3 gap-3"
-        >
-          <div className="card p-4 flex items-start gap-3">
+        >          <div className="card p-4 flex items-start gap-3">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-brand-50 to-brand-100 text-brand-700 border border-brand-200/60 flex items-center justify-center shrink-0 shadow-inner">
               <TrendingUp className="w-5 h-5" />
             </div>

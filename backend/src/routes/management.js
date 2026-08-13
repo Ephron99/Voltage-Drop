@@ -106,7 +106,7 @@ router.get('/projects/:id', async (req, res, next) => {
   }
 });
 
-router.post('/projects', requireRoles('planning', 'trusted_admin'), async (req, res, next) => {
+router.post('/projects', requireRoles('hub_manager', 'admin'), async (req, res, next) => {
   try {
     const { code, name, description, status, startDate, endDate, totalBudget } = req.body;
     if (!code || !name) {
@@ -145,7 +145,7 @@ router.post('/projects', requireRoles('planning', 'trusted_admin'), async (req, 
   }
 });
 
-router.patch('/projects/:id', requireRoles('planning', 'trusted_admin'), async (req, res, next) => {
+router.patch('/projects/:id', requireRoles('hub_manager', 'admin'), async (req, res, next) => {
   try {
     const { id } = req.params;
     const { code, name, description, status, startDate, endDate, totalBudget } = req.body;
@@ -178,7 +178,7 @@ router.patch('/projects/:id', requireRoles('planning', 'trusted_admin'), async (
   }
 });
 
-router.delete('/projects/:id', requireRoles('planning', 'trusted_admin'), async (req, res, next) => {
+router.delete('/projects/:id', requireRoles('hub_manager', 'admin'), async (req, res, next) => {
   try {
     const { id } = req.params;
     const [result] = await pool.query('DELETE FROM projects WHERE id = ?', [id]);
@@ -233,7 +233,7 @@ router.get('/scopes', async (req, res, next) => {
   }
 });
 
-router.post('/scopes', requireRoles('planning', 'trusted_admin'), async (req, res, next) => {
+router.post('/scopes', requireRoles('hub_manager', 'admin'), async (req, res, next) => {
   try {
     const { projectId, name, description, status, plannedKm, plannedTransformers, budgetAllocated, locationId } = req.body;
     if (!projectId || !name) {
@@ -270,7 +270,7 @@ router.post('/scopes', requireRoles('planning', 'trusted_admin'), async (req, re
   }
 });
 
-router.patch('/scopes/:id', requireRoles('planning', 'trusted_admin'), async (req, res, next) => {
+router.patch('/scopes/:id', requireRoles('hub_manager', 'admin'), async (req, res, next) => {
   try {
     const { id } = req.params;
     const { name, description, status, plannedKm, plannedTransformers, budgetAllocated, locationId } = req.body;
@@ -304,7 +304,7 @@ router.patch('/scopes/:id', requireRoles('planning', 'trusted_admin'), async (re
   }
 });
 
-router.post('/scopes/:id/approve', requireRoles('planning', 'senior_management', 'trusted_admin'), async (req, res, next) => {
+router.post('/scopes/:id/approve', requireRoles('hub_manager', 'senior_manager', 'admin'), async (req, res, next) => {
   try {
     const { id } = req.params;
     const [result] = await pool.query(
@@ -326,7 +326,7 @@ router.post('/scopes/:id/approve', requireRoles('planning', 'senior_management',
   }
 });
 
-router.delete('/scopes/:id', requireRoles('planning', 'trusted_admin'), async (req, res, next) => {
+router.delete('/scopes/:id', requireRoles('hub_manager', 'admin'), async (req, res, next) => {
   try {
     const { id } = req.params;
     const [result] = await pool.query('DELETE FROM scopes WHERE id = ?', [id]);
@@ -400,7 +400,7 @@ router.get('/tasks', async (req, res, next) => {
   }
 });
 
-router.post('/tasks', requireRoles('planning', 'trusted_admin'), async (req, res, next) => {
+router.post('/tasks', requireRoles('hub_manager', 'admin'), async (req, res, next) => {
   try {
     const {
       projectId, scopeId, title, description, status, priority,
@@ -439,7 +439,7 @@ router.post('/tasks', requireRoles('planning', 'trusted_admin'), async (req, res
   }
 });
 
-router.patch('/tasks/:id', requireRoles('planning', 'trusted_admin'), async (req, res, next) => {
+router.patch('/tasks/:id', requireRoles('hub_manager', 'admin'), async (req, res, next) => {
   try {
     const { id } = req.params;
     const {
@@ -492,7 +492,7 @@ router.patch('/tasks/:id', requireRoles('planning', 'trusted_admin'), async (req
   }
 });
 
-router.delete('/tasks/:id', requireRoles('planning', 'trusted_admin'), async (req, res, next) => {
+router.delete('/tasks/:id', requireRoles('hub_manager', 'admin'), async (req, res, next) => {
   try {
     const { id } = req.params;
     const [result] = await pool.query('DELETE FROM tasks WHERE id = ?', [id]);
@@ -550,7 +550,7 @@ router.get('/budget-items', async (req, res, next) => {
   }
 });
 
-router.post('/budget-items', requireRoles('planning', 'trusted_admin'), async (req, res, next) => {
+router.post('/budget-items', requireRoles('hub_manager', 'admin'), async (req, res, next) => {
   try {
     const { projectId, scopeId, category, description, plannedAmount, spentAmount, committedAmount, status } = req.body;
     if (!projectId || !category) {
@@ -581,7 +581,7 @@ router.post('/budget-items', requireRoles('planning', 'trusted_admin'), async (r
   }
 });
 
-router.patch('/budget-items/:id', requireRoles('planning', 'trusted_admin'), async (req, res, next) => {
+router.patch('/budget-items/:id', requireRoles('hub_manager', 'admin'), async (req, res, next) => {
   try {
     const { id } = req.params;
     const { category, description, plannedAmount, spentAmount, committedAmount, status } = req.body;
@@ -615,7 +615,7 @@ router.patch('/budget-items/:id', requireRoles('planning', 'trusted_admin'), asy
   }
 });
 
-router.delete('/budget-items/:id', requireRoles('planning', 'trusted_admin'), async (req, res, next) => {
+router.delete('/budget-items/:id', requireRoles('hub_manager', 'admin'), async (req, res, next) => {
   try {
     const { id } = req.params;
     const [result] = await pool.query('DELETE FROM budget_items WHERE id = ?', [id]);
@@ -667,7 +667,7 @@ router.get('/funds', async (req, res, next) => {
   }
 });
 
-router.post('/funds', requireRoles('planning', 'trusted_admin'), async (req, res, next) => {
+router.post('/funds', requireRoles('hub_manager', 'admin'), async (req, res, next) => {
   try {
     const { projectId, type, amount, description, reference, transactionDate } = req.body;
     if (!projectId || !type || !amount || !transactionDate) {
@@ -693,7 +693,7 @@ router.post('/funds', requireRoles('planning', 'trusted_admin'), async (req, res
   }
 });
 
-router.delete('/funds/:id', requireRoles('planning', 'trusted_admin'), async (req, res, next) => {
+router.delete('/funds/:id', requireRoles('hub_manager', 'admin'), async (req, res, next) => {
   try {
     const { id } = req.params;
     const [result] = await pool.query('DELETE FROM fund_transactions WHERE id = ?', [id]);
@@ -712,21 +712,23 @@ router.delete('/funds/:id', requireRoles('planning', 'trusted_admin'), async (re
 
 router.get('/branches', async (req, res, next) => {
   try {
-    const { lineId } = req.query;
+    const { hubId } = req.query;
     let sql = `
-      SELECT b.id, b.name, b.line_id AS lineId, b.length_km AS lengthKm,
+      SELECT b.id, b.name, b.hub_id AS hubId, b.length_km AS lengthKm,
              b.conductor_type AS conductorType, b.status,
              b.created_at AS createdAt, b.updated_at AS updatedAt,
-             l.name AS lineName, l.voltage_level AS voltageLevel,
-             loc.name AS locationName
+             h.name AS hubName,
+             (SELECT COUNT(*) FROM \`lines\` l WHERE l.branch_id = b.id) AS lineCount,
+             (SELECT COUNT(*) FROM transformers t
+              INNER JOIN \`lines\` l ON t.line_id = l.id
+              WHERE l.branch_id = b.id) AS transformerCount
       FROM branches b
-      LEFT JOIN \`lines\` l ON b.line_id = l.id
-      LEFT JOIN locations loc ON l.location_id = loc.id
+      LEFT JOIN hubs h ON b.hub_id = h.id
     `;
     const params = [];
-    if (lineId) {
-      sql += ' WHERE b.line_id = ?';
-      params.push(lineId);
+    if (hubId) {
+      sql += ' WHERE b.hub_id = ?';
+      params.push(hubId);
     }
     sql += ' ORDER BY b.name';
     const [rows] = await pool.query(sql, params);
@@ -736,20 +738,20 @@ router.get('/branches', async (req, res, next) => {
   }
 });
 
-router.post('/branches', requireRoles('planning', 'trusted_admin'), async (req, res, next) => {
+router.post('/branches', requireRoles('hub_manager', 'admin'), async (req, res, next) => {
   try {
-    const { name, lineId, lengthKm, conductorType, status } = req.body;
-    if (!name || !lineId) {
-      return res.status(400).json({ error: 'Name and line ID are required' });
+    const { name, hubId, lengthKm, conductorType, status } = req.body;
+    if (!name || !hubId) {
+      return res.status(400).json({ error: 'Name and hub ID are required' });
     }
     const id = newId();
     await pool.query(
-      `INSERT INTO branches (id, name, line_id, length_km, conductor_type, status)
+      `INSERT INTO branches (id, name, hub_id, length_km, conductor_type, status)
        VALUES (?, ?, ?, ?, ?, ?)`,
-      [id, name, lineId, lengthKm || 0, conductorType || null, status || 'planned']
+      [id, name, hubId, lengthKm || 0, conductorType || null, status || 'planned']
     );
     const [rows] = await pool.query(
-      `SELECT b.id, b.name, b.line_id AS lineId, b.length_km AS lengthKm,
+      `SELECT b.id, b.name, b.hub_id AS hubId, b.length_km AS lengthKm,
               b.conductor_type AS conductorType, b.status, b.created_at AS createdAt
        FROM branches b WHERE b.id = ?`,
       [id]
@@ -760,25 +762,25 @@ router.post('/branches', requireRoles('planning', 'trusted_admin'), async (req, 
   }
 });
 
-router.patch('/branches/:id', requireRoles('planning', 'trusted_admin'), async (req, res, next) => {
+router.patch('/branches/:id', requireRoles('hub_manager', 'admin'), async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { name, lineId, lengthKm, conductorType, status } = req.body;
+    const { name, hubId, lengthKm, conductorType, status } = req.body;
     const [result] = await pool.query(
       `UPDATE branches SET
          name = COALESCE(?, name),
-         line_id = COALESCE(?, line_id),
+         hub_id = COALESCE(?, hub_id),
          length_km = COALESCE(?, length_km),
          conductor_type = COALESCE(?, conductor_type),
          status = COALESCE(?, status)
        WHERE id = ?`,
-      [name || null, lineId ?? null, lengthKm ?? null, conductorType ?? null, status || null, id]
+      [name || null, hubId ?? null, lengthKm ?? null, conductorType ?? null, status || null, id]
     );
     if (result.affectedRows === 0) {
       return res.status(404).json({ error: 'Branch not found' });
     }
     const [rows] = await pool.query(
-      `SELECT b.id, b.name, b.line_id AS lineId, b.length_km AS lengthKm,
+      `SELECT b.id, b.name, b.hub_id AS hubId, b.length_km AS lengthKm,
               b.conductor_type AS conductorType, b.status,
               b.created_at AS createdAt, b.updated_at AS updatedAt
        FROM branches b WHERE b.id = ?`,
@@ -790,7 +792,7 @@ router.patch('/branches/:id', requireRoles('planning', 'trusted_admin'), async (
   }
 });
 
-router.delete('/branches/:id', requireRoles('planning', 'trusted_admin'), async (req, res, next) => {
+router.delete('/branches/:id', requireRoles('hub_manager', 'admin'), async (req, res, next) => {
   try {
     const { id } = req.params;
     const [result] = await pool.query('DELETE FROM branches WHERE id = ?', [id]);
@@ -816,11 +818,11 @@ router.get('/monitor/:projectId', async (req, res, next) => {
          s.id, s.name, s.status,
          s.planned_km AS plannedKm, s.planned_transformers AS plannedTransformers,
          s.budget_allocated AS budgetAllocated,
-         (SELECT COALESCE(SUM(pe.completed_km), 0)
+         (SELECT COALESCE(AVG(pe.progress_pct), 0)
           FROM progress_entries pe
           JOIN \`lines\` l ON pe.line_id = l.id
           WHERE l.location_id = s.location_id AND pe.status = 'published'
-         ) AS actualKm,
+         ) AS actualProgressPct,
          (SELECT COALESCE(SUM(pe.transformers_commissioned), 0)
           FROM progress_entries pe
           JOIN \`lines\` l ON pe.line_id = l.id

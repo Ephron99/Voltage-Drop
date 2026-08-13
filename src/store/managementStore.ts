@@ -53,7 +53,7 @@ interface ManagementState {
   createFund: (data: FundTransactionFormData) => Promise<FundTransaction | null>;
   deleteFund: (id: string) => Promise<boolean>;
 
-  fetchBranches: (lineId?: string) => Promise<void>;
+  fetchBranches: (hubId?: string) => Promise<void>;
   createBranch: (data: BranchFormData) => Promise<Branch | null>;
   updateBranch: (id: string, data: Partial<BranchFormData>) => Promise<boolean>;
   deleteBranch: (id: string) => Promise<boolean>;
@@ -376,9 +376,9 @@ export const useManagementStore = create<ManagementState>((set, get) => ({
     }
   },
 
-  fetchBranches: async (lineId) => {
+  fetchBranches: async (hubId) => {
     try {
-      const branches = await managementApi.listBranches(lineId);
+      const branches = await managementApi.listBranches(hubId);
       set({ branches });
     } catch (err) {
       set({

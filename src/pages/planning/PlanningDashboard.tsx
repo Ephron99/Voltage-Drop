@@ -23,10 +23,10 @@ import { projectStatusLabels } from "@/types";
 import type { ProjectStatus } from "@/types";
 
 const navItems = [
-  { label: "Dashboard", path: "/planning", icon: <LayoutDashboard className="w-4 h-4" /> },
-  { label: "Projects", path: "/planning/projects", icon: <FolderKanban className="w-4 h-4" /> },
-  { label: "Network Assets", path: "/planning/assets", icon: <Network className="w-4 h-4" /> },
-  { label: "Progress Monitor", path: "/planning/monitor", icon: <TrendingUp className="w-4 h-4" /> },
+  { label: "Dashboard", path: "/hub-manager", icon: <LayoutDashboard className="w-4 h-4" /> },
+  { label: "Projects", path: "/hub-manager/projects", icon: <FolderKanban className="w-4 h-4" /> },
+  { label: "Network Assets", path: "/hub-manager/assets", icon: <Network className="w-4 h-4" /> },
+  { label: "Progress Monitor", path: "/hub-manager/monitor", icon: <TrendingUp className="w-4 h-4" /> },
 ];
 
 const statusColors: Record<ProjectStatus, string> = {
@@ -92,7 +92,7 @@ export default function PlanningDashboard() {
 
   return (
     <div className="min-h-screen bg-electric-grid">
-      <Navbar role="planning" navItems={navItems} title="Management Portal" />
+      <Navbar role="hub_manager" navItems={navItems} title="Hub Manager Portal" />
 
       <main className="container py-5 space-y-5">
         <motion.div
@@ -102,10 +102,10 @@ export default function PlanningDashboard() {
         >
           <div className="space-y-0.5">
             <p className="text-[10px] font-semibold text-violet-700 uppercase tracking-wider">
-              Planning Department
+              Hub Manager Department
             </p>
             <h1 className="font-display text-2xl font-bold tracking-tight text-slate-900">
-              Management Portal
+              Hub Manager Portal
             </h1>
             <p className="text-slate-500 text-xs">
               Welcome back, {user?.name.split(" ")[0]} · Manage projects, scopes, budgets, and tasks
@@ -113,7 +113,7 @@ export default function PlanningDashboard() {
           </div>
 
           <Link
-            to="/planning/projects"
+            to="/hub-manager/projects"
             className="btn-primary"
           >
             <Plus className="w-4 h-4" />
@@ -181,7 +181,7 @@ export default function PlanningDashboard() {
                 Recent Projects
               </h2>
               <Link
-                to="/planning/projects"
+                to="/hub-manager/projects"
                 className="text-xs font-semibold text-violet-700 hover:text-violet-900 inline-flex items-center gap-1"
               >
                 View All <ArrowRight className="w-3 h-3" />
@@ -208,7 +208,7 @@ export default function PlanningDashboard() {
                     transition={{ delay: 0.25 + i * 0.05 }}
                   >
                     <Link
-                      to={`/planning/projects/${project.id}`}
+                      to={`/hub-manager/projects/${project.id}`}
                       className="block rounded-xl border border-slate-200/60 p-3 hover:border-violet-200/80 hover:bg-violet-50/30 transition-colors"
                     >
                       <div className="flex items-start justify-between gap-3">
@@ -248,7 +248,7 @@ export default function PlanningDashboard() {
             </h2>
             <div className="space-y-2">
               <Link
-                to="/planning/projects"
+                to="/hub-manager/projects"
                 className="flex items-center gap-3 rounded-xl border border-slate-200/60 p-3 hover:border-violet-200/80 hover:bg-violet-50/30 transition-colors"
               >
                 <div className="w-9 h-9 rounded-xl bg-violet-50 text-violet-700 flex items-center justify-center shrink-0">
@@ -260,7 +260,7 @@ export default function PlanningDashboard() {
                 </div>
               </Link>
               <Link
-                to="/planning/assets"
+                to="/hub-manager/assets"
                 className="flex items-center gap-3 rounded-xl border border-slate-200/60 p-3 hover:border-violet-200/80 hover:bg-violet-50/30 transition-colors"
               >
                 <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center shrink-0">
@@ -272,7 +272,7 @@ export default function PlanningDashboard() {
                 </div>
               </Link>
               <Link
-                to="/planning/monitor"
+                to="/hub-manager/monitor"
                 className="flex items-center gap-3 rounded-xl border border-slate-200/60 p-3 hover:border-violet-200/80 hover:bg-violet-50/30 transition-colors"
               >
                 <div className="w-9 h-9 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center shrink-0">

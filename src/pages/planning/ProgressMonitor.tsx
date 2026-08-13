@@ -19,10 +19,10 @@ import { StatCard } from "@/components/StatCard";
 import { scopeStatusLabels, taskStatusLabels, taskPriorityLabels } from "@/types";
 
 const navItems = [
-  { label: "Dashboard", path: "/planning", icon: <LayoutDashboard className="w-4 h-4" /> },
-  { label: "Projects", path: "/planning/projects", icon: <FolderKanban className="w-4 h-4" /> },
-  { label: "Network Assets", path: "/planning/assets", icon: <Network className="w-4 h-4" /> },
-  { label: "Progress Monitor", path: "/planning/monitor", icon: <TrendingUp className="w-4 h-4" /> },
+  { label: "Dashboard", path: "/hub-manager", icon: <LayoutDashboard className="w-4 h-4" /> },
+  { label: "Projects", path: "/hub-manager/projects", icon: <FolderKanban className="w-4 h-4" /> },
+  { label: "Network Assets", path: "/hub-manager/assets", icon: <Network className="w-4 h-4" /> },
+  { label: "Progress Monitor", path: "/hub-manager/monitor", icon: <TrendingUp className="w-4 h-4" /> },
 ];
 
 export default function ProgressMonitor() {
@@ -44,7 +44,7 @@ export default function ProgressMonitor() {
 
   return (
     <div className="min-h-screen bg-electric-grid">
-      <Navbar role="planning" navItems={navItems} title="Management Portal" />
+      <Navbar role="hub_manager" navItems={navItems} title="Hub Manager Portal" />
 
       <main className="container py-5 space-y-5">
         <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
@@ -139,7 +139,7 @@ export default function ProgressMonitor() {
               ) : (
                 <div className="space-y-2">
                   {monitorData.scopeProgress.map((scope, i) => {
-                    const kmPct = scope.plannedKm > 0 ? Math.min((scope.actualKm / scope.plannedKm) * 100, 100) : 0;
+                    const kmPct = Math.min(scope.actualProgressPct || 0, 100);
                     const trPct = scope.plannedTransformers > 0 ? Math.min((scope.actualTransformers / scope.plannedTransformers) * 100, 100) : 0;
                     return (
                       <motion.div
@@ -162,8 +162,8 @@ export default function ProgressMonitor() {
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                           <div>
                             <div className="flex justify-between text-[10px] text-slate-600 mb-0.5">
-                              <span>Cable KM Progress</span>
-                              <span className="font-mono font-bold">{scope.actualKm.toFixed(1)} / {scope.plannedKm} km ({Math.round(kmPct)}%)</span>
+                              <span>Cable Progress</span>
+                              <span className="font-mono font-bold">{scope.actualProgressPct.toFixed(1)}%</span>
                             </div>
                             <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
                               <div className="h-full bg-gradient-to-r from-violet-500 to-violet-700 rounded-full transition-all" style={{ width: `${kmPct}%` }} />

@@ -44,7 +44,7 @@ interface ProgressState {
     submitted: number;
     published: number;
     rejected: number;
-    totalKm: number;
+    avgProgress: number;
     transformersCommissioned: number;
   };
   getStatsForManager: () => {
@@ -52,7 +52,7 @@ interface ProgressState {
     published: number;
     rejected: number;
     totalThisWeek: number;
-    totalKm: number;
+    avgProgress: number;
     transformersCommissioned: number;
   };
 }
@@ -226,7 +226,10 @@ export const useProgressStore = create<ProgressState>((set, get) => ({
       submitted: entries.filter((e) => e.status === "submitted").length,
       published: entries.filter((e) => e.status === "published").length,
       rejected: entries.filter((e) => e.status === "rejected").length,
-      totalKm: entries.reduce((sum, e) => sum + e.completedKm, 0),
+      avgProgress:
+        entries.length > 0
+          ? entries.reduce((sum, e) => sum + e.progressPct, 0) / entries.length
+          : 0,
       transformersCommissioned: entries.reduce(
         (sum, e) => sum + e.transformersCommissioned,
         0
@@ -248,7 +251,10 @@ export const useProgressStore = create<ProgressState>((set, get) => ({
       published: entries.filter((e) => e.status === "published").length,
       rejected: entries.filter((e) => e.status === "rejected").length,
       totalThisWeek: thisWeekEntries.length,
-      totalKm: entries.reduce((sum, e) => sum + e.completedKm, 0),
+      avgProgress:
+        entries.length > 0
+          ? entries.reduce((sum, e) => sum + e.progressPct, 0) / entries.length
+          : 0,
       transformersCommissioned: entries.reduce(
         (sum, e) => sum + e.transformersCommissioned,
         0

@@ -15,7 +15,7 @@ router.use(authenticateJWT);
 
 const ENTRY_BASE_FIELDS = `
   pe.id, pe.entry_date, pe.location_id, pe.line_id, pe.voltage_level,
-  pe.transformer_id, pe.completed_km, pe.transformers_installed,
+  pe.transformer_id, pe.progress_pct, pe.transformers_installed,
   pe.transformers_terminated, pe.transformers_tested, pe.transformers_commissioned,
   pe.status, pe.site_engineer_id, pe.submitted_at, pe.branch_manager_id,
   pe.approved_at, pe.published_at, pe.rejection_comments,
@@ -29,7 +29,7 @@ const serializeEntry = (row) => ({
   lineId: row.line_id,
   voltageLevel: row.voltage_level,
   transformerId: row.transformer_id,
-  completedKm: row.completed_km,
+  progressPct: row.progress_pct,
   transformersInstalled: row.transformers_installed,
   transformersTerminated: row.transformers_terminated,
   transformersTested: row.transformers_tested,
@@ -59,10 +59,11 @@ router.get('/', async (req, res) => {
     const conditions = [];
     const params = [];
 
-    if (role === 'site_engineer') {
+    // branch_manager sees own entries; hub_manager/senior_manager/admin see everything
+    if (role === 'branch_manager') {
       conditions.push('pe.site_engineer_id = ?');
       params.push(userId);
-    } else if (role === 'branch_manager') {
+    } else if (role === 'hub_manager') {
       const [userRows] = await pool.query('SELECT branch FROM users WHERE id = ? LIMIT 1', [userId]);
       const userBranch = userRows[0]?.branch;
       if (userBranch) {
@@ -160,7 +161,7 @@ router.get('/:id', async (req, res) => {
 
     const entry = rows[0];
 
-    if (role === 'site_engineer' && entry.site_engineer_id !== userId) {
+    if (role === 'branch_manager' && entry.site_engineer_id !== userId) {
       return res.status(403).json({
         success: false,
         error: 'Access denied. You can only view your own entries.',
@@ -216,7 +217,7 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-router.post('/', requireRoles('site_engineer', 'trusted_admin'), validate(progressEntryCreateSchema), async (req, res) => {
+router.post('/', requireRoles('branch_manager', 'admin'), validate(progressEntryCreateSchema), async (req, res) => {
   try {
     const id = uuidv4();
     const { userId } = req.user;
@@ -228,7 +229,7 @@ router.post('/', requireRoles('site_engineer', 'trusted_admin'), validate(progre
       lineId,
       voltageLevel,
       transformerId,
-      completedKm,
+      progressPct,
       transformersInstalled,
       transformersTerminated,
       transformersTested,
@@ -238,13 +239,13 @@ router.post('/', requireRoles('site_engineer', 'trusted_admin'), validate(progre
     await pool.query(
       `INSERT INTO progress_entries (
         id, entry_date, location_id, line_id, voltage_level, transformer_id,
-        completed_km, transformers_installed, transformers_terminated,
+        progress_pct, transformers_installed, transformers_terminated,
         transformers_tested, transformers_commissioned, status,
         site_engineer_id, created_at, updated_at
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'draft', ?, ?, ?)`,
       [
         id, entryDate, locationId, lineId, voltageLevel, transformerId,
-        completedKm, transformersInstalled, transformersTerminated,
+        progressPct, transformersInstalled, transformersTerminated,
         transformersTested, transformersCommissioned, userId, now, now,
       ]
     );
@@ -295,7 +296,7 @@ router.put('/:id', validate(progressEntryUpdateSchema), async (req, res) => {
     if (entry.site_engineer_id !== userId) {
       return res.status(403).json({
         success: false,
-        error: 'Access denied. Only the site engineer who created this entry can update it.',
+        error: 'Access denied. Only the Branch Manager who created this entry can update it.',
       });
     }
 
@@ -309,7 +310,7 @@ router.put('/:id', validate(progressEntryUpdateSchema), async (req, res) => {
 
     const {
       entryDate, locationId, lineId, voltageLevel, transformerId,
-      completedKm, transformersInstalled, transformersTerminated,
+      progressPct, transformersInstalled, transformersTerminated,
       transformersTested, transformersCommissioned,
     } = req.body;
 
@@ -321,7 +322,7 @@ router.put('/:id', validate(progressEntryUpdateSchema), async (req, res) => {
     if (lineId !== undefined) { fields.push('line_id = ?'); params.push(lineId); }
     if (voltageLevel !== undefined) { fields.push('voltage_level = ?'); params.push(voltageLevel); }
     if (transformerId !== undefined) { fields.push('transformer_id = ?'); params.push(transformerId); }
-    if (completedKm !== undefined) { fields.push('completed_km = ?'); params.push(completedKm); }
+    if (progressPct !== undefined) { fields.push('progress_pct = ?'); params.push(progressPct); }
     if (transformersInstalled !== undefined) { fields.push('transformers_installed = ?'); params.push(transformersInstalled); }
     if (transformersTerminated !== undefined) { fields.push('transformers_terminated = ?'); params.push(transformersTerminated); }
     if (transformersTested !== undefined) { fields.push('transformers_tested = ?'); params.push(transformersTested); }
@@ -386,7 +387,7 @@ router.patch('/:id/submit', async (req, res) => {
     const entry = existingRows[0];
 
     const isOwner = entry.site_engineer_id === userId;
-    const isAdmin = role === 'trusted_admin';
+    const isAdmin = (role === 'admin' || role === 'hub_manager');
 
     if (!isOwner && !isAdmin) {
       return res.status(403).json({
@@ -432,7 +433,7 @@ router.patch('/:id/submit', async (req, res) => {
   }
 });
 
-router.patch('/:id/approve', requireRoles('branch_manager', 'trusted_admin'), async (req, res) => {
+router.patch('/:id/approve', requireRoles('hub_manager', 'admin'), async (req, res) => {
   try {
     const { id } = req.params;
     const { userId } = req.user;
@@ -489,7 +490,7 @@ router.patch('/:id/approve', requireRoles('branch_manager', 'trusted_admin'), as
   }
 });
 
-router.patch('/:id/reject', requireRoles('branch_manager', 'trusted_admin'), validate(rejectSchema), async (req, res) => {
+router.patch('/:id/reject', requireRoles('hub_manager', 'admin'), validate(rejectSchema), async (req, res) => {
   try {
     const { id } = req.params;
     const { comments } = req.body;
@@ -546,7 +547,7 @@ router.patch('/:id/reject', requireRoles('branch_manager', 'trusted_admin'), val
   }
 });
 
-router.patch('/:id/publish', requireRoles('branch_manager', 'trusted_admin'), async (req, res) => {
+router.patch('/:id/publish', requireRoles('hub_manager', 'admin'), async (req, res) => {
   try {
     const { id } = req.params;
     const { userId } = req.user;
@@ -624,7 +625,7 @@ router.delete('/:id', async (req, res) => {
     }
 
     const entry = existingRows[0];
-    const isAdmin = role === 'trusted_admin';
+    const isAdmin = (role === 'admin' || role === 'hub_manager');
     const isOwner = entry.site_engineer_id === userId;
     const deletableStatuses = ['draft', 'rejected'];
 

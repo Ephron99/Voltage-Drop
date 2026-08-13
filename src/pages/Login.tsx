@@ -15,9 +15,7 @@ import {
   AlertCircle,
   LineChart,
   CheckCircle2,
-  FileText,
   Users,
-  Wrench,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import type { UserRole } from "@/types";
@@ -29,29 +27,32 @@ const loginSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
   password: z.string().min(6, "Password must be at least 6 characters"),
   role: z.enum(
-    [
-      "site_engineer",
-      "branch_manager",
-      "planning",
-      "senior_management",
-      "it_engineer",
-      "trusted_admin",
-    ],
+    ["branch_manager", "hub_manager", "senior_manager", "admin"],
     { required_error: "Please select your role" }
   ),
 });
 
 type LoginFormValues = z.infer<typeof loginSchema>;
 
-const availableRoles: UserRole[] = ["site_engineer", "branch_manager", "planning", "senior_management", "it_engineer"];
+const availableRoles: UserRole[] = [
+  "branch_manager",
+  "hub_manager",
+  "senior_manager",
+  "admin",
+];
 
 const roleIcons: Record<UserRole, React.ReactNode> = {
-  site_engineer: <Shield className="w-4 h-4" />,
-  branch_manager: <ShieldCheck className="w-4 h-4" />,
-  planning: <FileText className="w-4 h-4" />,
-  senior_management: <LineChart className="w-4 h-4" />,
-  it_engineer: <Users className="w-4 h-4" />,
-  trusted_admin: <Shield className="w-4 h-4" />,
+  branch_manager: <Shield className="w-4 h-4" />,
+  hub_manager: <ShieldCheck className="w-4 h-4" />,
+  senior_manager: <LineChart className="w-4 h-4" />,
+  admin: <Users className="w-4 h-4" />,
+};
+
+const roleColors: Record<UserRole, string> = {
+  branch_manager: "bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100",
+  hub_manager: "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100",
+  senior_manager: "bg-amber-50 text-amber-800 border-amber-200 hover:bg-amber-100",
+  admin: "bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100",
 };
 
 const featureHighlights = [
@@ -65,7 +66,7 @@ const featureHighlights = [
     icon: <CheckCircle2 className="w-5 h-5" />,
     title: "Role-Based Approval Workflow",
     description:
-      "Branch Managers review, validate, and publish data before it reaches dashboards.",
+      "Hub Managers review, validate, and publish data before it reaches dashboards.",
   },
   {
     icon: <LineChart className="w-5 h-5" />,
@@ -93,7 +94,7 @@ export default function Login() {
     defaultValues: {
       email: "",
       password: "",
-      role: "site_engineer",
+      role: "branch_manager",
     },
   });
 
@@ -103,8 +104,7 @@ export default function Login() {
     setAuthError(null);
     const success = await login(values as unknown as Parameters<typeof login>[0]);
     if (success) {
-      const homeRoute = roleHomeRoute[values.role];
-      navigate(homeRoute, { replace: true });
+      navigate(roleHomeRoute[values.role], { replace: true });
     } else {
       setAuthError(
         "Invalid credentials. Please check your email, password, and selected role."
@@ -113,14 +113,14 @@ export default function Login() {
   };
 
   const handleDemoLogin = async (role: UserRole) => {
-    const demoUsers = {
-      site_engineer: { email: "engineer@site.com", password: "password123" },
-      branch_manager: { email: "manager@branch.com", password: "password123" },
-      planning: { email: "planner@company.com", password: "password123" },
-      senior_management: { email: "director@company.com", password: "password123" },
-      it_engineer: { email: "admin@it.com", password: "password123" },
+    const demoUsers: Record<UserRole, { email: string; password: string }> = {
+      branch_manager: { email: "engineer.kigali@reg.rw", password: "password123" },
+      hub_manager:    { email: "manager@branch.com",     password: "password123" },
+      senior_manager: { email: "director@company.com",   password: "password123" },
+      admin:          { email: "admin@it.com",            password: "password123" },
     };
     const creds = demoUsers[role];
+    if (!creds) return;
     setValue("email", creds.email);
     setValue("password", creds.password);
     setValue("role", role);
@@ -133,8 +133,7 @@ export default function Login() {
     } as unknown as Parameters<typeof login>[0]);
     setDemoLoading(null);
     if (success) {
-      const homeRoute = roleHomeRoute[role];
-      navigate(homeRoute, { replace: true });
+      navigate(roleHomeRoute[role], { replace: true });
     } else {
       setAuthError(
         "Invalid credentials. Please check your email, password, and selected role."
@@ -145,6 +144,7 @@ export default function Login() {
   return (
     <div className="min-h-screen bg-electric-grid bg-hero-gradient font-body text-slate-900">
       <div className="min-h-screen grid lg:grid-cols-2">
+        {/* Left panel */}
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -154,25 +154,13 @@ export default function Login() {
           <div className="absolute inset-0 opacity-30">
             <svg className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
               <defs>
-                <pattern
-                  id="grid"
-                  width="48"
-                  height="48"
-                  patternUnits="userSpaceOnUse"
-                >
-                  <path
-                    d="M 48 0 L 0 0 0 48"
-                    fill="none"
-                    stroke="white"
-                    strokeWidth="0.5"
-                    opacity="0.2"
-                  />
+                <pattern id="grid" width="48" height="48" patternUnits="userSpaceOnUse">
+                  <path d="M 48 0 L 0 0 0 48" fill="none" stroke="white" strokeWidth="0.5" opacity="0.2" />
                 </pattern>
               </defs>
               <rect width="100%" height="100%" fill="url(#grid)" />
             </svg>
           </div>
-
           <div className="absolute top-1/4 -left-20 w-80 h-80 rounded-full bg-brand-500/20 blur-3xl" />
           <div className="absolute bottom-1/4 -right-20 w-96 h-96 rounded-full bg-amber-400/15 blur-3xl" />
 
@@ -182,12 +170,6 @@ export default function Login() {
             transition={{ duration: 0.6, delay: 0.2 }}
             className="relative z-10 max-w-lg w-full space-y-7"
           >
-            <motion.div
-              whileHover={{ scale: 1.02 }}
-              className="flex items-start"
-            >
-              </motion.div>
-
             <div className="pt-3 space-y-1">
               <h2 className="font-display text-3xl font-bold tracking-tight leading-tight">
                 Voltage Drop
@@ -195,12 +177,10 @@ export default function Login() {
                 <span className="text-amber-300">Correction Project System</span>
               </h2>
               <p className="text-brand-200/80 text-sm leading-relaxed mt-3">
-                Centralized platform for tracking, validating, and visualizing
-                Rwanda Energy Group electrical infrastructure project progress
-                across all stakeholders.
+                Centralized platform for tracking, validating, and visualizing Rwanda Energy Group
+                electrical infrastructure project progress across all stakeholders.
               </p>
             </div>
-
             <div className="space-y-3 pt-2">
               {featureHighlights.map((feature, i) => (
                 <motion.div
@@ -214,12 +194,8 @@ export default function Login() {
                     {feature.icon}
                   </div>
                   <div className="min-w-0">
-                    <h3 className="font-semibold text-white text-sm leading-tight">
-                      {feature.title}
-                    </h3>
-                    <p className="text-brand-200/70 text-xs mt-1 leading-relaxed">
-                      {feature.description}
-                    </p>
+                    <h3 className="font-semibold text-white text-sm leading-tight">{feature.title}</h3>
+                    <p className="text-brand-200/70 text-xs mt-1 leading-relaxed">{feature.description}</p>
                   </div>
                 </motion.div>
               ))}
@@ -227,6 +203,7 @@ export default function Login() {
           </motion.div>
         </motion.div>
 
+        {/* Right panel — login form */}
         <div className="flex items-center justify-center p-5 sm:p-7 lg:p-10">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
@@ -234,15 +211,12 @@ export default function Login() {
             transition={{ duration: 0.5, delay: 0.3 }}
             className="w-full max-w-md space-y-5"
           >
+            {/* Mobile logo */}
             <div className="lg:hidden flex items-center gap-2.5 mb-1">
               <img src={logoPng} alt="Rwanda Energy Group" className="h-10 object-contain" />
               <div className="flex flex-col leading-tight">
-                <span className="font-display text-sm font-bold text-brand-800 tracking-tight">
-                  Voltage Drop
-                </span>
-                <span className="text-[11px] text-slate-500 font-medium">
-                  Project Monitoring
-                </span>
+                <span className="font-display text-sm font-bold text-brand-800 tracking-tight">Voltage Drop</span>
+                <span className="text-[11px] text-slate-500 font-medium">Project Monitoring</span>
               </div>
             </div>
 
@@ -253,8 +227,7 @@ export default function Login() {
                 transition={{ delay: 0.4 }}
                 className="font-display text-2xl font-bold tracking-tight text-slate-900"
               >
-                 <img src={logoPng} alt="Rwanda Energy Group" className="h-14 object-contain" />
-           
+                <img src={logoPng} alt="Rwanda Energy Group" className="h-14 object-contain" />
                 Welcome back
               </motion.h1>
               <motion.p
@@ -267,13 +240,14 @@ export default function Login() {
               </motion.p>
             </div>
 
+            {/* Role selector — 2x2 grid */}
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.5 }}
               className="card p-1.5 bg-gradient-to-br from-slate-100 to-slate-50 border-slate-200"
             >
-              <div className="grid grid-cols-2 sm:grid-cols-5 gap-1">
+              <div className="grid grid-cols-2 gap-1">
                 {availableRoles.map((role) => (
                   <button
                     key={role}
@@ -292,6 +266,7 @@ export default function Login() {
               </div>
             </motion.div>
 
+            {/* Login form */}
             <AnimatePresence mode="wait">
               <motion.form
                 key="login-form"
@@ -303,9 +278,7 @@ export default function Login() {
                 className="space-y-4"
               >
                 <div className="space-y-1.5">
-                  <label className="input-label text-xs" htmlFor="email">
-                    Email Address
-                  </label>
+                  <label className="input-label text-xs" htmlFor="email">Email Address</label>
                   <div className="relative">
                     <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
                     <input
@@ -326,9 +299,7 @@ export default function Login() {
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="input-label text-xs" htmlFor="password">
-                    Password
-                  </label>
+                  <label className="input-label text-xs" htmlFor="password">Password</label>
                   <div className="relative">
                     <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
                     <input
@@ -344,11 +315,7 @@ export default function Login() {
                       onClick={() => setShowPassword((s) => !s)}
                       className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
                     >
-                      {showPassword ? (
-                        <EyeOff className="w-4 h-4" />
-                      ) : (
-                        <Eye className="w-4 h-4" />
-                      )}
+                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
                   </div>
                   {errors.password && (
@@ -368,9 +335,7 @@ export default function Login() {
                       className="p-3 rounded-xl bg-rose-50 border border-rose-200/60 flex items-start gap-2"
                     >
                       <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
-                      <p className="text-xs text-rose-700 leading-relaxed">
-                        {authError}
-                      </p>
+                      <p className="text-xs text-rose-700 leading-relaxed">{authError}</p>
                     </motion.div>
                   )}
                 </AnimatePresence>
@@ -397,6 +362,7 @@ export default function Login() {
               </motion.form>
             </AnimatePresence>
 
+            {/* Demo login buttons */}
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -406,78 +372,28 @@ export default function Login() {
               <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 text-center">
                 Quick Demo Login
               </p>
-              <div className="grid grid-cols-2 sm:grid-cols-5 gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => handleDemoLogin("site_engineer")}
-                  disabled={demoLoading !== null}
-                  className="py-2 px-2 rounded-xl text-[10px] font-semibold bg-slate-50 text-slate-700 border border-slate-200/60 hover:bg-slate-100 transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {demoLoading === "site_engineer" ? (
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  ) : (
-                    <Shield className="w-3.5 h-3.5" />
-                  )}
-                  Site Eng.
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleDemoLogin("branch_manager")}
-                  disabled={demoLoading !== null}
-                  className="py-2 px-2 rounded-xl text-[10px] font-semibold bg-brand-50 text-brand-700 border border-brand-200/60 hover:bg-brand-100 transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {demoLoading === "branch_manager" ? (
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  ) : (
-                    <ShieldCheck className="w-3.5 h-3.5" />
-                  )}
-                  Branch Mgr.
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleDemoLogin("planning")}
-                  disabled={demoLoading !== null}
-                  className="py-2 px-2 rounded-xl text-[10px] font-semibold bg-violet-50 text-violet-700 border border-violet-200/60 hover:bg-violet-100 transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {demoLoading === "planning" ? (
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  ) : (
-                    <FileText className="w-3.5 h-3.5" />
-                  )}
-                  Planning
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleDemoLogin("senior_management")}
-                  disabled={demoLoading !== null}
-                  className="py-2 px-2 rounded-xl text-[10px] font-semibold bg-amber-50 text-amber-800 border border-amber-200/60 hover:bg-amber-100 transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {demoLoading === "senior_management" ? (
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  ) : (
-                    <LineChart className="w-3.5 h-3.5" />
-                  )}
-                  Mgmt
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleDemoLogin("it_engineer")}
-                  disabled={demoLoading !== null}
-                  className="py-2 px-2 rounded-xl text-[10px] font-semibold bg-slate-100 text-slate-700 border border-slate-200 hover:bg-slate-200/60 transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {demoLoading === "it_engineer" ? (
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  ) : (
-                    <Wrench className="w-3.5 h-3.5" />
-                  )}
-                  IT Admin
-                </button>
+              <div className="grid grid-cols-2 gap-1.5">
+                {availableRoles.map((role) => (
+                  <button
+                    key={role}
+                    type="button"
+                    onClick={() => handleDemoLogin(role)}
+                    disabled={demoLoading !== null}
+                    className={`py-2 px-2 rounded-xl text-[10px] font-semibold border transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed ${roleColors[role]}`}
+                  >
+                    {demoLoading === role ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      roleIcons[role]
+                    )}
+                    {roleLabels[role]}
+                  </button>
+                ))}
               </div>
               <div className="rounded-xl bg-amber-50 border border-amber-200/50 p-2.5">
                 <p className="text-[11px] text-amber-800 leading-relaxed">
-                  <span className="font-semibold">Demo credentials:</span> Use
-                  the buttons above or login manually with any email/password
-                  combination from the meeting minutes.
+                  <span className="font-semibold">Demo credentials:</span>{" "}
+                  Password is <span className="font-mono font-bold">password123</span> for all demo accounts.
                 </p>
               </div>
             </motion.div>

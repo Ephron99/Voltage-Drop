@@ -52,10 +52,10 @@ import type {
 } from "@/types";
 
 const navItems = [
-  { label: "Dashboard", path: "/planning", icon: <LayoutDashboard className="w-4 h-4" /> },
-  { label: "Projects", path: "/planning/projects", icon: <FolderKanban className="w-4 h-4" /> },
-  { label: "Network Assets", path: "/planning/assets", icon: <Network className="w-4 h-4" /> },
-  { label: "Progress Monitor", path: "/planning/monitor", icon: <TrendingUp className="w-4 h-4" /> },
+  { label: "Dashboard", path: "/hub-manager", icon: <LayoutDashboard className="w-4 h-4" /> },
+  { label: "Projects", path: "/hub-manager/projects", icon: <FolderKanban className="w-4 h-4" /> },
+  { label: "Network Assets", path: "/hub-manager/assets", icon: <Network className="w-4 h-4" /> },
+  { label: "Progress Monitor", path: "/hub-manager/monitor", icon: <TrendingUp className="w-4 h-4" /> },
 ];
 
 type Tab = "scopes" | "tasks" | "budget" | "funds" | "monitor";
@@ -112,7 +112,7 @@ export default function ProjectDetail() {
 
   useEffect(() => {
     fetchAll();
-    loadUsers("site_engineer");
+    loadUsers("branch_manager");
   }, [fetchAll, loadUsers]);
 
   const project = id ? getProjectById(id) : undefined;
@@ -138,11 +138,11 @@ export default function ProjectDetail() {
   if (!project) {
     return (
       <div className="min-h-screen bg-electric-grid">
-        <Navbar role="planning" navItems={navItems} title="Management Portal" />
+      <Navbar role="hub_manager" navItems={navItems} title="Hub Manager Portal" />
         <div className="container py-20 text-center">
           <FolderKanban className="w-12 h-12 mx-auto mb-3 text-slate-300" />
           <p className="text-sm text-slate-500">Loading project or project not found...</p>
-          <Link to="/planning/projects" className="btn-secondary mt-4">
+          <Link to="/hub-manager/projects" className="btn-secondary mt-4">
             <ArrowLeft className="w-4 h-4" /> Back to Projects
           </Link>
         </div>
@@ -157,11 +157,11 @@ export default function ProjectDetail() {
 
   return (
     <div className="min-h-screen bg-electric-grid">
-      <Navbar role="planning" navItems={navItems} title="Management Portal" />
+      <Navbar role="hub_manager" navItems={navItems} title="Hub Manager Portal" />
 
       <main className="container py-5 space-y-5">
         <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
-          <Link to="/planning/projects" className="inline-flex items-center gap-1 text-xs font-semibold text-slate-500 hover:text-violet-700 mb-2">
+          <Link to="/hub-manager/projects" className="inline-flex items-center gap-1 text-xs font-semibold text-slate-500 hover:text-violet-700 mb-2">
             <ArrowLeft className="w-3 h-3" /> Back to Projects
           </Link>
           <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
@@ -292,7 +292,7 @@ export default function ProjectDetail() {
               <TasksTab
                 tasks={tasks}
                 scopes={scopes}
-                users={users.filter((u) => u.role === "site_engineer")}
+                users={users.filter((u) => u.role === "branch_manager")}
                 lines={lines}
                 transformers={transformers}
                 projectId={project.id}
@@ -721,7 +721,7 @@ function TasksTab({
       {tasks.length === 0 ? (
         <div className="card p-8 text-center text-sm text-slate-500">
           <ListChecks className="w-8 h-8 mx-auto mb-2 text-slate-300" />
-          No tasks allocated yet. Assign tasks to site engineers.
+          No tasks allocated yet. Assign tasks to Branch Managers.
         </div>
       ) : (
         <div className="card overflow-hidden">
@@ -1431,7 +1431,7 @@ function MonitorTab({
           ) : (
             <div className="space-y-2">
               {data.scopeProgress.map((scope) => {
-                const kmPct = scope.plannedKm > 0 ? Math.min((scope.actualKm / scope.plannedKm) * 100, 100) : 0;
+                const kmPct = Math.min(scope.actualProgressPct || 0, 100);
                 const trPct = scope.plannedTransformers > 0 ? Math.min((scope.actualTransformers / scope.plannedTransformers) * 100, 100) : 0;
                 return (
                   <div key={scope.id} className="rounded-xl border border-slate-200/60 p-2.5">
@@ -1448,8 +1448,8 @@ function MonitorTab({
                     <div className="space-y-1.5">
                       <div>
                         <div className="flex justify-between text-[10px] text-slate-600 mb-0.5">
-                          <span>Cable KM</span>
-                          <span className="font-mono font-bold">{scope.actualKm.toFixed(1)} / {scope.plannedKm} km</span>
+                          <span>Cable Progress</span>
+                          <span className="font-mono font-bold">{scope.actualProgressPct.toFixed(1)}%</span>
                         </div>
                         <div className="h-1.5 rounded-full bg-slate-100 overflow-hidden">
                           <div className="h-full bg-gradient-to-r from-violet-500 to-violet-700 rounded-full" style={{ width: `${kmPct}%` }} />

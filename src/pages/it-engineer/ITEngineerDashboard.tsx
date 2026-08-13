@@ -32,12 +32,10 @@ import type { UserRole } from "@/types";
 import { roleLabels } from "@/types";
 
 const roleIcons: Record<UserRole, React.ReactNode> = {
-  site_engineer: <Shield className="w-3.5 h-3.5" />,
-  branch_manager: <ShieldCheck className="w-3.5 h-3.5" />,
-  planning: <FileText className="w-3.5 h-3.5" />,
-  senior_management: <Activity className="w-3.5 h-3.5" />,
-  it_engineer: <Wrench className="w-3.5 h-3.5" />,
-  trusted_admin: <Shield className="w-3.5 h-3.5" />,
+  branch_manager: <Shield className="w-3.5 h-3.5" />,
+  hub_manager: <ShieldCheck className="w-3.5 h-3.5" />,
+  senior_manager: <Activity className="w-3.5 h-3.5" />,
+  admin: <Wrench className="w-3.5 h-3.5" />,
 };
 
 const systemServices = [
@@ -64,15 +62,13 @@ export default function ITEngineerDashboard() {
 
   const userStats = useMemo(() => {
     const counts: Record<UserRole, number> = {
-      site_engineer: 0,
       branch_manager: 0,
-      planning: 0,
-      senior_management: 0,
-      it_engineer: 0,
-      trusted_admin: 0,
+      hub_manager: 0,
+      senior_manager: 0,
+      admin: 0,
     };
     users.forEach((u) => {
-      counts[u.role]++;
+      if (counts[u.role] !== undefined) counts[u.role]++;
     });
     return counts;
   }, [users]);
@@ -105,12 +101,10 @@ export default function ITEngineerDashboard() {
       role,
       count: userStats[role],
       color: {
-        site_engineer: "bg-blue-50 text-blue-700 border-blue-200",
-        branch_manager: "bg-emerald-50 text-emerald-700 border-emerald-200",
-        planning: "bg-violet-50 text-violet-700 border-violet-200",
-        senior_management: "bg-amber-50 text-amber-700 border-amber-200",
-        it_engineer: "bg-slate-100 text-slate-700 border-slate-200",
-        trusted_admin: "bg-rose-50 text-rose-700 border-rose-200",
+        branch_manager: "bg-blue-50 text-blue-700 border-blue-200",
+        hub_manager: "bg-emerald-50 text-emerald-700 border-emerald-200",
+        senior_manager: "bg-amber-50 text-amber-700 border-amber-200",
+        admin: "bg-rose-50 text-rose-700 border-rose-200",
       }[role],
     }));
   }, [userStats]);
@@ -129,25 +123,13 @@ export default function ITEngineerDashboard() {
   return (
     <div className="min-h-screen bg-electric-grid">
       <Navbar
-        role="it_engineer"
+        role="admin"
         navItems={[
-          {
-            label: "Dashboard",
-            path: "/it",
-            icon: <LayoutDashboard className="w-4 h-4" />,
-          },
-          {
-            label: "User Management",
-            path: "/it/users",
-            icon: <Users className="w-4 h-4" />,
-          },
-          {
-            label: "System Maintenance",
-            path: "/it/system",
-            icon: <Settings className="w-4 h-4" />,
-          },
+          { label: "Dashboard",          path: "/admin",        icon: <LayoutDashboard className="w-4 h-4" /> },
+          { label: "User Management",    path: "/admin/users",  icon: <Users className="w-4 h-4" /> },
+          { label: "System Maintenance", path: "/admin/system", icon: <Settings className="w-4 h-4" /> },
         ]}
-        title="IT Engineer Portal"
+        title="Admin Portal"
       />
 
       <main className="container py-8 space-y-8">
@@ -178,11 +160,11 @@ export default function ITEngineerDashboard() {
             </p>
           </div>
           <div className="flex gap-2 flex-wrap">
-            <Link to="/it/users" className="btn-primary">
+            <Link to="/admin/users" className="btn-primary">
               <UserPlus className="w-4 h-4" />
               Manage Users
             </Link>
-            <Link to="/it/system" className="btn-secondary">
+            <Link to="/admin/system" className="btn-secondary">
               <Wrench className="w-4 h-4" />
               System Tools
             </Link>
@@ -303,7 +285,7 @@ export default function ITEngineerDashboard() {
             </div>
 
             <Link
-              to="/it/system"
+              to="/admin/system"
               className="btn-ghost w-full justify-center text-sm bg-slate-50 border border-slate-200"
             >
               View Full System Status
@@ -376,7 +358,7 @@ export default function ITEngineerDashboard() {
             </div>
 
             <Link
-              to="/it/users"
+              to="/admin/users"
               className="btn-ghost w-full justify-center text-sm bg-slate-50 border border-slate-200"
             >
               Open User Manager
@@ -407,7 +389,7 @@ export default function ITEngineerDashboard() {
                 </div>
               </div>
               <Link
-                to="/it/system"
+                to="/admin/system"
                 className="text-xs font-semibold text-brand-700 hover:text-brand-800 inline-flex items-center gap-1"
               >
                 View Audit Trail
@@ -529,7 +511,7 @@ export default function ITEngineerDashboard() {
             </div>
 
             <Link
-              to="/it/users"
+              to="/admin/users"
               className="btn-ghost w-full justify-center text-sm bg-slate-50 border border-slate-200"
             >
               Manage All Users

@@ -19,11 +19,16 @@ import {
   Users,
   CalendarDays,
   User as UserIcon,
+  Building2,
+  MapPin,
+  FileEdit,
+  History,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useAuthStore } from "@/store/authStore";
 import { useProgressStore } from "@/store/progressStore";
 import { useMasterDataStore } from "@/store/masterDataStore";
+import { useHubStore } from "@/store/hubStore";
 import { Navbar } from "@/components/Navbar";
 import { StatCard } from "@/components/StatCard";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -33,6 +38,16 @@ const navItems = [
     label: "Dashboard",
     path: "/branch-manager",
     icon: <LayoutDashboard className="w-4 h-4" />,
+  },
+  {
+    label: "New Entry",
+    path: "/branch-manager/entry",
+    icon: <FileEdit className="w-4 h-4" />,
+  },
+  {
+    label: "My History",
+    path: "/branch-manager/history",
+    icon: <History className="w-4 h-4" />,
   },
   {
     label: "Pending Reviews",
@@ -52,16 +67,21 @@ export default function BranchManagerDashboard() {
   const { getLocationName, getLineName } = useMasterDataStore();
   const { fetchEntries } = useProgressStore();
   const { fetchAll, initialized: masterInitialized } = useMasterDataStore();
+  const { fetchHubs, getHubName, initialized: hubsInitialized } = useHubStore();
 
   useEffect(() => {
     fetchEntries();
   }, [fetchEntries]);
 
   useEffect(() => {
-    if (!masterInitialized) {
-      fetchAll();
-    }
+    if (!masterInitialized) fetchAll();
   }, [fetchAll, masterInitialized]);
+
+  useEffect(() => {
+    if (!hubsInitialized) fetchHubs();
+  }, [fetchHubs, hubsInitialized]);
+
+  const hubName = user?.hubId ? getHubName(user.hubId) : (user?.hubName ?? "Your Hub");
 
   const stats = useMemo(() => {
     const oneWeekAgo = new Date();
@@ -74,7 +94,11 @@ export default function BranchManagerDashboard() {
       published: rawEntries.filter((e) => e.status === "published").length,
       rejected: rawEntries.filter((e) => e.status === "rejected").length,
       totalThisWeek: thisWeekEntries.length,
-      totalKm: rawEntries.reduce((sum, e) => sum + e.completedKm, 0),
+      avgProgress:
+        rawEntries.length > 0
+          ? rawEntries.reduce((sum, e) => sum + e.progressPct, 0) /
+            rawEntries.length
+          : 0,
       transformersCommissioned: rawEntries.reduce(
         (sum, e) => sum + e.transformersCommissioned,
         0
@@ -113,18 +137,7 @@ export default function BranchManagerDashboard() {
     <div className="min-h-screen bg-electric-grid">
       <Navbar
         role="branch_manager"
-        navItems={[
-          {
-            label: "Dashboard",
-            path: "/branch-manager",
-            icon: <LayoutDashboard className="w-4 h-4" />,
-          },
-          {
-            label: "Published",
-            path: "/branch-manager/published",
-            icon: <BookOpen className="w-4 h-4" />,
-          },
-        ]}
+        navItems={navItems}
         title="Branch Manager Portal"
       />
 
@@ -135,9 +148,15 @@ export default function BranchManagerDashboard() {
           className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4"
         >
           <div className="space-y-1">
-            <p className="text-sm font-semibold text-emerald-700">
-              Welcome back, {user?.name.split(" ")[0]} 👋
-            </p>
+            <div className="flex items-center gap-2 flex-wrap">
+              <p className="text-sm font-semibold text-emerald-700">
+                Welcome back, {user?.name.split(" ")[0]} 👋
+              </p>
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-brand-100 text-brand-800 text-[10px] font-bold">
+                <Building2 className="w-3 h-3" />
+                {hubName}
+              </span>
+            </div>
             <h1 className="font-display text-3xl font-bold tracking-tight text-slate-900">
               Review & Approval Dashboard
             </h1>
@@ -148,7 +167,7 @@ export default function BranchManagerDashboard() {
                 month: "long",
                 year: "numeric",
               })}
-              {user?.branch && ` · ${user.branch}`}
+              {user?.branch && ` · Branch: ${user.branch}`}
             </p>
           </div>
           {pendingEntries.length > 0 && (
@@ -228,27 +247,27 @@ export default function BranchManagerDashboard() {
                 <div className="flex items-center gap-2 mb-1">
                   <Gauge className="w-4 h-4 text-emerald-700" />
                   <p className="text-xs font-semibold uppercase tracking-wider text-emerald-700">
-                    Cable Completed
+                    Average Progress
                   </p>
                 </div>
                 <p className="font-display text-4xl font-bold text-emerald-900 leading-tight tracking-tight">
-                  {stats.totalKm.toFixed(2)}
+                  {stats.avgProgress.toFixed(1)}
                   <span className="ml-1.5 text-lg font-semibold text-emerald-700">
-                    km
+                    %
                   </span>
                 </p>
                 <div className="mt-3 h-2 w-full bg-white/80 rounded-full overflow-hidden">
                   <motion.div
                     initial={{ width: 0 }}
                     animate={{
-                      width: `${Math.min((stats.totalKm / 50) * 100, 100)}%`,
+                      width: `${Math.min(stats.avgProgress, 100)}%`,
                     }}
                     transition={{ duration: 1, delay: 0.6 }}
                     className="h-full bg-gradient-to-r from-emerald-500 to-emerald-700 rounded-full"
                   />
                 </div>
                 <p className="text-xs text-emerald-600 mt-2 font-medium">
-                  {((stats.totalKm / 50) * 100).toFixed(1)}% of 50 km target
+                  Average across {rawEntries.length} entries
                 </p>
               </div>
 
@@ -385,7 +404,7 @@ export default function BranchManagerDashboard() {
                     </div>
                     <div className="flex items-center justify-between">
                       <p className="text-xs text-emerald-700 font-semibold">
-                        {entry.completedKm.toFixed(2)} km · {entry.transformersCommissioned}C
+                        {entry.progressPct.toFixed(1)}% · {entry.transformersCommissioned}C
                       </p>
                       {entry.siteEngineerName && (
                         <div className="flex items-center gap-1 text-[11px] text-slate-500">
@@ -592,10 +611,7 @@ export default function BranchManagerDashboard() {
                         </td>
                         <td className="py-4 pr-4 text-right">
                           <p className="font-display text-base font-bold text-brand-800 leading-none">
-                            {entry.completedKm.toFixed(2)}
-                            <span className="text-xs font-semibold text-slate-500 ml-1">
-                              km
-                            </span>
+                            {entry.progressPct.toFixed(1)}%
                           </p>
                           <div className="mt-1.5 inline-flex flex-wrap justify-end gap-0.5">
                             {entry.transformersInstalled > 0 && (

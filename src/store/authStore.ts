@@ -7,6 +7,7 @@ interface NewUserData {
   name: string;
   role: UserRole;
   branch?: string;
+  hubId?: string;
   password: string;
 }
 
@@ -208,10 +209,8 @@ export const useAuthStore = create<AuthState>((set, get) => {
 });
 
 export const roleHomeRoute: Record<UserRole, string> = {
-  site_engineer: "/site-engineer",
   branch_manager: "/branch-manager",
-  planning: "/planning",
-  senior_management: "/management",
-  it_engineer: "/it",
-  trusted_admin: "/admin",
+  hub_manager: "/hub-manager",
+  senior_manager: "/senior-manager",
+  admin: "/admin",
 };

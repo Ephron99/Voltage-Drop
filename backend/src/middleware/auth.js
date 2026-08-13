@@ -17,6 +17,7 @@ function authenticateJWT(req, res, next) {
       id: decoded.id,
       role: decoded.role,
       name: decoded.name,
+      hubId: decoded.hubId || null,
     };
     next();
   } catch (err) {

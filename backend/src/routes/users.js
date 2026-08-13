@@ -20,22 +20,40 @@ function serializeUser(row) {
     name: row.full_name,
     role: row.role,
     branch: row.branch || undefined,
+    hubId: row.hub_id || undefined,
+    hubName: row.hub_name || undefined,
+    hubRegion: row.hub_region || undefined,
     createdAt: row.created_at,
     lastLoginAt: row.last_login_at || undefined,
   };
 }
 
+const USER_SELECT = `
+  u.id, u.email, u.full_name, u.role, u.branch, u.hub_id,
+  h.name AS hub_name, h.region AS hub_region,
+  u.created_at, u.last_login_at
+`;
+
+const USER_JOINS = `FROM users u LEFT JOIN hubs h ON u.hub_id = h.id`;
+
 router.get('/', authenticateJWT, async (req, res, next) => {
   try {
-    const { role } = req.query;
-    let sql =
-      'SELECT id, email, full_name, role, branch, created_at, last_login_at FROM users';
+    const { role, hubId } = req.query;
+    let sql = `SELECT ${USER_SELECT} ${USER_JOINS}`;
+    const conditions = [];
     const params = [];
     if (role) {
-      sql += ' WHERE role = ?';
+      conditions.push('u.role = ?');
       params.push(role);
     }
-    sql += ' ORDER BY created_at DESC';
+    if (hubId) {
+      conditions.push('u.hub_id = ?');
+      params.push(hubId);
+    }
+    if (conditions.length > 0) {
+      sql += ' WHERE ' + conditions.join(' AND ');
+    }
+    sql += ' ORDER BY u.created_at DESC';
     const [rows] = await pool.query(sql, params);
     return res.json({ success: true, data: rows.map(serializeUser) });
   } catch (err) {
@@ -47,7 +65,7 @@ router.get('/:id', authenticateJWT, async (req, res, next) => {
   try {
     const { id } = req.params;
     const [rows] = await pool.query(
-      'SELECT id, email, full_name, role, branch, created_at, last_login_at FROM users WHERE id = ? LIMIT 1',
+      `SELECT ${USER_SELECT} ${USER_JOINS} WHERE u.id = ? LIMIT 1`,
       [id]
     );
     if (rows.length === 0) {
@@ -62,11 +80,11 @@ router.get('/:id', authenticateJWT, async (req, res, next) => {
 router.post(
   '/',
   authenticateJWT,
-  requireRoles('it_engineer', 'trusted_admin'),
+  requireRoles('admin'),
   validate(userCreateSchema),
   async (req, res, next) => {
     try {
-      const { name, email, role, password, branch } = req.validated;
+      const { name, email, role, password, branch, hubId } = req.validated;
       const [existing] = await pool.query('SELECT id FROM users WHERE email = ?', [email]);
       if (existing.length > 0) {
         return res.status(409).json({ error: 'Email already in use' });
@@ -74,11 +92,11 @@ router.post(
       const id = uuidv4();
       const hash = await bcrypt.hash(password, env.BCRYPT_SALT_ROUNDS);
       await pool.query(
-        'INSERT INTO users (id, email, password_hash, full_name, role, branch) VALUES (?, ?, ?, ?, ?, ?)',
-        [id, email, hash, name, role, branch || null]
+        'INSERT INTO users (id, email, password_hash, full_name, role, branch, hub_id) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        [id, email, hash, name, role, branch || null, hubId || null]
       );
       const [rows] = await pool.query(
-        'SELECT id, email, full_name, role, branch, created_at, last_login_at FROM users WHERE id = ? LIMIT 1',
+        `SELECT ${USER_SELECT} ${USER_JOINS} WHERE u.id = ? LIMIT 1`,
         [id]
       );
       return res.status(201).json({ success: true, data: serializeUser(rows[0]) });
@@ -91,11 +109,12 @@ router.post(
 router.patch(
   '/:id',
   authenticateJWT,
+  requireRoles('admin'),
   validate(userUpdateSchema),
   async (req, res, next) => {
     try {
       const { id } = req.params;
-      const { name, email, role, branch, password } = req.validated;
+      const { name, email, role, branch, hubId, password } = req.validated;
 
       const [existing] = await pool.query(
         'SELECT id, email FROM users WHERE id = ? LIMIT 1',
@@ -117,22 +136,11 @@ router.patch(
 
       const fields = [];
       const params = [];
-      if (name !== undefined) {
-        fields.push('full_name = ?');
-        params.push(name);
-      }
-      if (email !== undefined) {
-        fields.push('email = ?');
-        params.push(email);
-      }
-      if (role !== undefined) {
-        fields.push('role = ?');
-        params.push(role);
-      }
-      if (branch !== undefined) {
-        fields.push('branch = ?');
-        params.push(branch || null);
-      }
+      if (name !== undefined) { fields.push('full_name = ?'); params.push(name); }
+      if (email !== undefined) { fields.push('email = ?'); params.push(email); }
+      if (role !== undefined) { fields.push('role = ?'); params.push(role); }
+      if (branch !== undefined) { fields.push('branch = ?'); params.push(branch || null); }
+      if (hubId !== undefined) { fields.push('hub_id = ?'); params.push(hubId || null); }
       if (password) {
         const hash = await bcrypt.hash(password, env.BCRYPT_SALT_ROUNDS);
         fields.push('password_hash = ?');
@@ -145,7 +153,7 @@ router.patch(
       }
 
       const [rows] = await pool.query(
-        'SELECT id, email, full_name, role, branch, created_at, last_login_at FROM users WHERE id = ? LIMIT 1',
+        `SELECT ${USER_SELECT} ${USER_JOINS} WHERE u.id = ? LIMIT 1`,
         [id]
       );
       return res.json({ success: true, data: serializeUser(rows[0]) });
@@ -155,7 +163,7 @@ router.patch(
   }
 );
 
-router.delete('/:id', authenticateJWT, requireRoles('it_engineer', 'trusted_admin'), async (req, res, next) => {
+router.delete('/:id', authenticateJWT, requireRoles('admin'), async (req, res, next) => {
   try {
     const { id } = req.params;
     if (req.user.id === id) {
@@ -175,7 +183,7 @@ router.delete('/:id', authenticateJWT, requireRoles('it_engineer', 'trusted_admi
 router.post(
   '/:id/reset-password',
   authenticateJWT,
-  requireRoles('it_engineer', 'trusted_admin'),
+  requireRoles('admin'),
   validate(resetPasswordSchema),
   async (req, res, next) => {
     try {

@@ -1,12 +1,10 @@
 const { z } = require('zod');
 
 const USER_ROLE_ENUM = z.enum([
-  'site_engineer',
   'branch_manager',
-  'planning',
-  'senior_management',
-  'it_engineer',
-  'trusted_admin',
+  'hub_manager',
+  'senior_manager',
+  'admin',
 ]);
 
 const VOLTAGE_LEVEL_ENUM = z.enum(['MV', 'LV']);
@@ -23,6 +21,7 @@ const userCreateSchema = z.object({
   role: USER_ROLE_ENUM,
   password: z.string().min(6, 'Password must be at least 6 characters'),
   branch: z.string().optional(),
+  hubId: z.string().nullable().optional(),
 });
 
 const userUpdateSchema = z
@@ -31,6 +30,7 @@ const userUpdateSchema = z
     email: z.string().email('Invalid email format').optional(),
     role: USER_ROLE_ENUM.optional(),
     branch: z.string().nullable().optional(),
+    hubId: z.string().nullable().optional(),
     password: z.string().min(6, 'Password must be at least 6 characters').optional(),
   })
   .strict();
@@ -45,7 +45,7 @@ const progressEntrySchema = z.object({
   lineId: z.string().min(1, 'lineId is required'),
   voltageLevel: VOLTAGE_LEVEL_ENUM,
   transformerId: z.string().min(1, 'transformerId is required'),
-  completedKm: z.number().gte(0, 'completedKm must be >= 0'),
+  progressPct: z.number().gte(0, 'progressPct must be >= 0').lte(100, 'progressPct must be <= 100'),
   transformersInstalled: z.number().int().gte(0, 'transformersInstalled must be >= 0'),
   transformersTerminated: z.number().int().gte(0, 'transformersTerminated must be >= 0'),
   transformersTested: z.number().int().gte(0, 'transformersTested must be >= 0'),
@@ -62,7 +62,7 @@ const progressEntryUpdateSchema = z
     lineId: z.string().min(1, 'lineId is required').optional(),
     voltageLevel: VOLTAGE_LEVEL_ENUM.optional(),
     transformerId: z.string().min(1, 'transformerId is required').optional(),
-    completedKm: z.number().gte(0, 'completedKm must be >= 0').optional(),
+    progressPct: z.number().gte(0, 'progressPct must be >= 0').lte(100, 'progressPct must be <= 100').optional(),
     transformersInstalled: z.number().int().gte(0, 'transformersInstalled must be >= 0').optional(),
     transformersTerminated: z.number().int().gte(0, 'transformersTerminated must be >= 0').optional(),
     transformersTested: z.number().int().gte(0, 'transformersTested must be >= 0').optional(),

@@ -9,15 +9,34 @@
 CREATE DATABASE IF NOT EXISTS voltage_drop;
 USE voltage_drop;
 
-
-
-
+-- ============================================================
+-- ROLES
+-- ============================================================
 
 CREATE TABLE IF NOT EXISTS roles (
     name VARCHAR(50) PRIMARY KEY,
     description VARCHAR(255),
     permissions JSON
 );
+
+-- ============================================================
+-- HUBS  (Nation → Hub level)
+-- Rwanda hierarchy: Nation → Hub → Branch → Line/Feeder → Transformer
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS hubs (
+    id CHAR(36) PRIMARY KEY,
+    name VARCHAR(255) NOT NULL UNIQUE,
+    region VARCHAR(100) NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+-- ============================================================
+-- USERS
+-- hub_id links branch_manager and site_engineer to a hub.
+-- senior_management/planning/it_engineer/trusted_admin have hub_id = NULL.
+-- ============================================================
 
 CREATE TABLE IF NOT EXISTS users (
     id CHAR(36) PRIMARY KEY,
@@ -26,25 +45,66 @@ CREATE TABLE IF NOT EXISTS users (
     full_name VARCHAR(255) NOT NULL,
     role VARCHAR(50) NOT NULL,
     branch VARCHAR(100),
+    hub_id CHAR(36) NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     last_login_at DATETIME NULL,
-    FOREIGN KEY (role) REFERENCES roles(name)
+    FOREIGN KEY (role) REFERENCES roles(name),
+    FOREIGN KEY (hub_id) REFERENCES hubs(id) ON DELETE SET NULL,
+    INDEX idx_user_hub (hub_id),
+    INDEX idx_user_role (role)
 );
+
+-- ============================================================
+-- LOCATIONS  (physical substation / feeder station)
+-- Optionally linked to a hub.
+-- ============================================================
 
 CREATE TABLE IF NOT EXISTS locations (
     id CHAR(36) PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
     address VARCHAR(500) NOT NULL,
-    governorate VARCHAR(100) NOT NULL
+    governorate VARCHAR(100) NOT NULL,
+    hub_id CHAR(36) NULL,
+    FOREIGN KEY (hub_id) REFERENCES hubs(id) ON DELETE SET NULL,
+    INDEX idx_location_hub (hub_id)
 );
+
+-- ============================================================
+-- BRANCHES  (Branch level)
+-- A Hub has many Branches.
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS branches (
+    id CHAR(36) PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    hub_id CHAR(36) NOT NULL,
+    length_km DECIMAL(10,3) DEFAULT 0,
+    conductor_type VARCHAR(100),
+    status ENUM('planned', 'under_construction', 'energized', 'decommissioned') DEFAULT 'planned',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (hub_id) REFERENCES hubs(id) ON DELETE CASCADE,
+    INDEX idx_branch_hub (hub_id)
+);
+
+-- ============================================================
+-- LINES  (Line/Feeder level)
+-- A Branch has many Lines.
+-- ============================================================
 
 CREATE TABLE IF NOT EXISTS `lines` (
     id CHAR(36) PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
     voltage_level ENUM('MV', 'LV') NOT NULL,
-    location_id CHAR(36) NOT NULL,
-    FOREIGN KEY (location_id) REFERENCES locations(id)
+    branch_id CHAR(36) NOT NULL,
+    FOREIGN KEY (branch_id) REFERENCES branches(id) ON DELETE CASCADE,
+    INDEX idx_line_branch (branch_id)
 );
+
+-- ============================================================
+-- TRANSFORMERS  (Transformer level)
+-- A Line has many Transformers.
+-- ============================================================
 
 CREATE TABLE IF NOT EXISTS transformers (
     id CHAR(36) PRIMARY KEY,
@@ -52,7 +112,8 @@ CREATE TABLE IF NOT EXISTS transformers (
     serial_number VARCHAR(100) UNIQUE NOT NULL,
     capacity_kva INT NOT NULL,
     line_id CHAR(36) NOT NULL,
-    FOREIGN KEY (line_id) REFERENCES `lines`(id)
+    FOREIGN KEY (line_id) REFERENCES `lines`(id) ON DELETE CASCADE,
+    INDEX idx_transformer_line (line_id)
 );
 
 -- ============================================================
@@ -96,19 +157,6 @@ CREATE TABLE IF NOT EXISTS scopes (
     FOREIGN KEY (approved_by) REFERENCES users(id),
     INDEX idx_scope_project (project_id),
     INDEX idx_scope_status (status)
-);
-
-CREATE TABLE IF NOT EXISTS branches (
-    id CHAR(36) PRIMARY KEY,
-    name VARCHAR(255) NOT NULL,
-    line_id CHAR(36) NOT NULL,
-    length_km DECIMAL(10,3) DEFAULT 0,
-    conductor_type VARCHAR(100),
-    status ENUM('planned', 'under_construction', 'energized', 'decommissioned') DEFAULT 'planned',
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (line_id) REFERENCES `lines`(id) ON DELETE CASCADE,
-    INDEX idx_branch_line (line_id)
 );
 
 CREATE TABLE IF NOT EXISTS tasks (
@@ -184,7 +232,7 @@ CREATE TABLE IF NOT EXISTS progress_entries (
     line_id CHAR(36) NOT NULL,
     voltage_level ENUM('MV', 'LV') NOT NULL,
     transformer_id CHAR(36) NOT NULL,
-    completed_km DECIMAL(10,3) DEFAULT 0,
+    progress_pct DECIMAL(5,2) DEFAULT 0,
     transformers_installed INT DEFAULT 0,
     transformers_terminated INT DEFAULT 0,
     transformers_tested INT DEFAULT 0,
@@ -209,10 +257,12 @@ CREATE TABLE IF NOT EXISTS progress_entries (
     INDEX idx_manager (branch_manager_id)
 );
 
+-- ============================================================
+-- SEED: Roles (idempotent)
+-- ============================================================
+
 INSERT IGNORE INTO roles (name, description, permissions) VALUES
-('site_engineer', 'Site Engineer - Enters daily progress data', '{"progress":["create","edit","submit"],"dashboard":["view_own"]}'),
-('branch_manager', 'Branch Manager - Reviews and approves progress', '{"progress":["review","approve","publish","reject"],"dashboard":["view_branch"]}'),
-('planning', 'Planning Department - Creates scopes and budgets', '{"scope":["create","edit","manage_budget"],"progress":["view_all"]}'),
-('senior_management', 'Senior Management - Views dashboards and approves scope changes', '{"dashboard":["view_all"],"scope":["approve_changes"],"comments":["add"]}'),
-('it_engineer', 'IT Engineer - Platform maintenance only', '{"system":["maintain","manage_users_no_data"]}'),
-('trusted_admin', 'Trusted Administrator - Full system control', '{"system":["full_control","backup","configure","correct_data"]}');
+('branch_manager', 'Branch Manager - Enters daily progress data and reviews branch submissions', '{"progress":["create","edit","submit","review","approve","publish","reject"],"dashboard":["view_own","view_branch"]}'),
+('hub_manager', 'Hub Manager - Manages projects, scopes, budgets, network assets and monitors progress', '{"scope":["create","edit","manage_budget"],"progress":["view_all"],"projects":["manage"],"assets":["manage"]}'),
+('senior_manager', 'Senior Manager - Oversees all hubs across the nation with executive view', '{"dashboard":["view_all_hubs"],"scope":["approve_changes"],"comments":["add"],"records":["view_all"]}'),
+('admin', 'Admin - Full system control including user management and system maintenance', '{"system":["full_control","backup","configure","correct_data","manage_users"]}');

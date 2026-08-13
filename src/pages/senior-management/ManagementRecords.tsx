@@ -27,17 +27,17 @@ import { ProgressEntryDetail } from "@/components/ProgressEntryDetail";
 const navItems = [
   {
     label: "Dashboard",
-    path: "/management",
+    path: "/senior-manager",
     icon: <LayoutDashboard className="w-4 h-4" />,
   },
   {
     label: "Published Records",
-    path: "/management/records",
+    path: "/senior-manager/records",
     icon: <BookOpen className="w-4 h-4" />,
   },
 ];
 
-type SortField = "entryDate" | "publishedAt" | "locationId" | "completedKm";
+type SortField = "entryDate" | "publishedAt" | "locationId" | "progressPct";
 type SortDir = "asc" | "desc";
 
 const PAGE_SIZE = 8;
@@ -71,13 +71,17 @@ export default function ManagementRecords() {
   const [selectedEntry, setSelectedEntry] = useState<ProgressEntry | null>(null);
 
   const summaryStats = useMemo(() => {
-    const totalKm = allEntries.reduce((sum, e) => sum + e.completedKm, 0);
+    const avgProgress =
+      allEntries.length > 0
+        ? allEntries.reduce((sum, e) => sum + e.progressPct, 0) /
+          allEntries.length
+        : 0;
     const totalTRSFO = allEntries.reduce(
       (sum, e) => sum + e.transformersCommissioned,
       0
     );
     const uniqueEngineers = new Set(allEntries.map((e) => e.siteEngineerId)).size;
-    return { totalKm, totalTRSFO, uniqueEngineers };
+    return { avgProgress, totalTRSFO, uniqueEngineers };
   }, [allEntries]);
 
   const filtered = useMemo(() => {
@@ -112,9 +116,9 @@ export default function ManagementRecords() {
           av = getLocationName(a.locationId);
           bv = getLocationName(b.locationId);
           break;
-        case "completedKm":
-          av = a.completedKm;
-          bv = b.completedKm;
+        case "progressPct":
+          av = a.progressPct;
+          bv = b.progressPct;
           break;
       }
       if (av < bv) return sortDir === "asc" ? -1 : 1;
@@ -157,13 +161,13 @@ export default function ManagementRecords() {
         "Line",
         "Voltage",
         "Transformer",
-        "Km Completed",
+        "Progress %",
         "TRSFO Installed",
         "TRSFO Terminated",
         "TRSFO Tested",
         "TRSFO Commissioned",
-        "Site Engineer",
         "Branch Manager",
+        "Hub Manager",
       ],
       ...filtered.map((e) => [
         e.entryDate,
@@ -172,7 +176,7 @@ export default function ManagementRecords() {
         getLineName(e.lineId),
         e.voltageLevel,
         getTransformerName(e.transformerId),
-        e.completedKm.toString(),
+        e.progressPct.toString(),
         e.transformersInstalled.toString(),
         e.transformersTerminated.toString(),
         e.transformersTested.toString(),
@@ -199,7 +203,7 @@ export default function ManagementRecords() {
 
   return (
     <div className="min-h-screen bg-electric-grid">
-      <Navbar role="senior_management" navItems={navItems} title="Senior Management Portal" />
+      <Navbar role="senior_manager" navItems={navItems} title="Senior Manager Portal" />
 
       <main className="container py-5 space-y-5">
         <motion.div
@@ -216,7 +220,7 @@ export default function ManagementRecords() {
             </h1>
             <p className="text-slate-500 text-xs">
               {allEntries.length} record{allEntries.length !== 1 && "s"} approved
-              and published by Branch Managers · Read-only executive view
+              and published by Hub Managers · Read-only executive view
             </p>
           </div>
 
@@ -239,12 +243,12 @@ export default function ManagementRecords() {
             </div>
             <div>
               <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">
-                Total Km Published
+                Average Progress
               </p>
               <p className="font-display text-lg font-bold text-slate-900 leading-tight mt-0.5">
-                {summaryStats.totalKm.toFixed(2)}
+                {summaryStats.avgProgress.toFixed(1)}
                 <span className="text-[10px] text-slate-500 ml-1 font-semibold">
-                  km
+                  %
                 </span>
               </p>
             </div>
@@ -354,11 +358,11 @@ export default function ManagementRecords() {
                   </th>
                   <th
                     className="text-right text-[10px] font-semibold uppercase tracking-wider text-slate-500 px-3 py-2.5 cursor-pointer select-none hover:bg-slate-100/60 transition-colors"
-                    onClick={() => toggleSort("completedKm")}
+                    onClick={() => toggleSort("progressPct")}
                   >
                     <span className="inline-flex items-center gap-1">
                       Progress
-                      <ArrowUpDown className={`w-3 h-3 transition-transform ${sortField === "completedKm" ? (sortDir === "asc" ? "rotate-180" : "") : "opacity-40"}`} />
+                      <ArrowUpDown className={`w-3 h-3 transition-transform ${sortField === "progressPct" ? (sortDir === "asc" ? "rotate-180" : "") : "opacity-40"}`} />
                     </span>
                   </th>
                   <th
@@ -427,10 +431,7 @@ export default function ManagementRecords() {
                         <div className="text-right space-y-1">
                           <div>
                             <span className="font-display text-sm font-bold text-brand-800">
-                              {entry.completedKm.toFixed(2)}
-                            </span>
-                            <span className="text-[10px] text-slate-400 ml-0.5">
-                              km
+                              {entry.progressPct.toFixed(1)}%
                             </span>
                           </div>
                           <div className="flex justify-end gap-1 flex-wrap max-w-[160px]">

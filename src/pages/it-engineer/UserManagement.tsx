@@ -29,6 +29,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Navbar } from "@/components/Navbar";
 import { useAuthStore } from "@/store/authStore";
+import { useHubStore } from "@/store/hubStore";
 import { RoleBadge } from "@/components/StatusBadge";
 import type { User, UserRole } from "@/types";
 import { roleLabels } from "@/types";
@@ -36,36 +37,36 @@ import { roleLabels } from "@/types";
 const userSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
   email: z.string().email("Please enter a valid email address"),
-  role: z.enum([
-    "site_engineer",
-    "branch_manager",
-    "planning",
-    "senior_management",
-    "it_engineer",
-    "trusted_admin",
-  ]),
+  role: z.enum(["branch_manager", "hub_manager", "senior_manager", "admin"]),
   branch: z.string().optional(),
+  hubId: z.string().optional(),
   password: z.string().min(6, "Password must be at least 6 characters").optional(),
 });
 
 type UserFormValues = z.infer<typeof userSchema>;
 
+// Roles that require hub assignment
+const HUB_REQUIRED_ROLES: UserRole[] = ["hub_manager", "branch_manager"];
+
 const roleIcons: Record<UserRole, React.ReactNode> = {
-  site_engineer: <Shield className="w-3.5 h-3.5" />,
-  branch_manager: <ShieldCheck className="w-3.5 h-3.5" />,
-  planning: <FileText className="w-3.5 h-3.5" />,
-  senior_management: <Activity className="w-3.5 h-3.5" />,
-  it_engineer: <Wrench className="w-3.5 h-3.5" />,
-  trusted_admin: <Shield className="w-3.5 h-3.5" />,
+  branch_manager: <Shield className="w-3.5 h-3.5" />,
+  hub_manager: <ShieldCheck className="w-3.5 h-3.5" />,
+  senior_manager: <Activity className="w-3.5 h-3.5" />,
+  admin: <Wrench className="w-3.5 h-3.5" />,
 };
 
 export default function UserManagement() {
   const { user, users, addUser, updateUser, deleteUser, resetPassword, loadUsers } = useAuthStore();
+  const { hubs, fetchHubs, initialized: hubsInitialized } = useHubStore();
   const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
     loadUsers();
   }, [loadUsers]);
+
+  useEffect(() => {
+    if (!hubsInitialized) fetchHubs();
+  }, [fetchHubs, hubsInitialized]);
   const [roleFilter, setRoleFilter] = useState<UserRole | "all">("all");
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
@@ -87,14 +88,12 @@ export default function UserManagement() {
 
   const stats = useMemo(() => {
     const counts: Record<UserRole, number> = {
-      site_engineer: 0,
       branch_manager: 0,
-      planning: 0,
-      senior_management: 0,
-      it_engineer: 0,
-      trusted_admin: 0,
+      hub_manager: 0,
+      senior_manager: 0,
+      admin: 0,
     };
-    users.forEach((u) => (counts[u.role]++));
+    users.forEach((u) => { if (u.role in counts) counts[u.role]++; });
     return counts;
   }, [users]);
 
@@ -113,7 +112,7 @@ export default function UserManagement() {
     defaultValues: {
       name: "",
       email: "",
-      role: "site_engineer",
+      role: "branch_manager",
       branch: "",
       password: "",
     },
@@ -136,6 +135,7 @@ export default function UserManagement() {
       email: editingUser?.email,
       role: editingUser?.role,
       branch: editingUser?.branch,
+      hubId: editingUser?.hubId,
       password: undefined,
     },
   });
@@ -152,6 +152,7 @@ export default function UserManagement() {
       email: u.email,
       role: u.role,
       branch: u.branch || "",
+      hubId: u.hubId || "",
       password: undefined,
     });
   };
@@ -166,6 +167,7 @@ export default function UserManagement() {
       email: values.email,
       role: values.role,
       branch: values.branch || undefined,
+      hubId: values.hubId || undefined,
       password: values.password,
     });
     if (result) {
@@ -184,12 +186,14 @@ export default function UserManagement() {
       email: string;
       role: UserRole;
       branch?: string;
+      hubId?: string;
       password: string;
     }> = {};
     if (values.name !== undefined) updateData.name = values.name;
     if (values.email !== undefined) updateData.email = values.email;
     if (values.role !== undefined) updateData.role = values.role;
     if (values.branch !== undefined) updateData.branch = values.branch || undefined;
+    if (values.hubId !== undefined) updateData.hubId = values.hubId || undefined;
     if (values.password) updateData.password = values.password;
 
     const ok = await updateUser(editingUser.id, updateData);
@@ -230,25 +234,13 @@ export default function UserManagement() {
   return (
     <div className="min-h-screen bg-electric-grid">
       <Navbar
-        role="it_engineer"
+        role="admin"
         navItems={[
-          {
-            label: "Dashboard",
-            path: "/it",
-            icon: <LayoutDashboard className="w-4 h-4" />,
-          },
-          {
-            label: "User Management",
-            path: "/it/users",
-            icon: <Users className="w-4 h-4" />,
-          },
-          {
-            label: "System Maintenance",
-            path: "/it/system",
-            icon: <Settings className="w-4 h-4" />,
-          },
+          { label: "Dashboard",          path: "/admin",        icon: <LayoutDashboard className="w-4 h-4" /> },
+          { label: "User Management",    path: "/admin/users",  icon: <Users className="w-4 h-4" /> },
+          { label: "System Maintenance", path: "/admin/system", icon: <Settings className="w-4 h-4" /> },
         ]}
-        title="IT Engineer Portal"
+        title="Admin Portal"
       />
 
       <main className="container py-8 space-y-6">
@@ -372,7 +364,7 @@ export default function UserManagement() {
                     Role
                   </th>
                   <th className="text-left text-xs font-semibold uppercase tracking-wider text-slate-500 pb-3 pr-4">
-                    Branch
+                    Hub / Branch
                   </th>
                   <th className="text-left text-xs font-semibold uppercase tracking-wider text-slate-500 pb-3 pr-4">
                     Created
@@ -441,11 +433,19 @@ export default function UserManagement() {
                           <RoleBadge role={u.role} />
                         </td>
                         <td className="py-4 pr-4">
-                          <div className="flex items-center gap-1.5 text-xs text-slate-600">
-                            <Building2 className="w-3.5 h-3.5 text-slate-400" />
-                            {u.branch || (
-                              <span className="text-slate-400 italic">—</span>
+                          <div className="flex flex-col gap-0.5">
+                            {u.hubName && (
+                              <div className="flex items-center gap-1.5 text-xs text-brand-700 font-semibold">
+                                <Building2 className="w-3.5 h-3.5 text-brand-500" />
+                                {u.hubName}
+                              </div>
                             )}
+                            <div className="flex items-center gap-1.5 text-xs text-slate-600">
+                              <Building2 className={`w-3.5 h-3.5 ${u.hubName ? "text-slate-300" : "text-slate-400"}`} />
+                              {u.branch || (
+                                <span className="text-slate-400 italic">—</span>
+                              )}
+                            </div>
                           </div>
                         </td>
                         <td className="py-4 pr-4">
@@ -594,11 +594,24 @@ export default function UserManagement() {
                 </div>
                 <div className="space-y-1.5">
                   <label className="input-label text-xs">
-                    Branch <span className="text-slate-400">(optional)</span>
+                    Hub <span className="text-slate-400">(required for Hub Manager &amp; Branch Manager)</span>
+                  </label>
+                  <select className="input-field" {...registerAdd("hubId")}>
+                    <option value="">— No Hub (nation-level role) —</option>
+                    {hubs.map((h) => (
+                      <option key={h.id} value={h.id}>
+                        {h.name} · {h.region}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="input-label text-xs">
+                    Branch <span className="text-slate-400">(optional — e.g. Kicukiro, Jabana)</span>
                   </label>
                   <input
                     className="input-field"
-                    placeholder="e.g. Cairo North"
+                    placeholder="e.g. Kicukiro"
                     {...registerAdd("branch")}
                   />
                 </div>
@@ -702,8 +715,19 @@ export default function UserManagement() {
                   </select>
                 </div>
                 <div className="space-y-1.5">
+                  <label className="input-label text-xs">Hub</label>
+                  <select className="input-field" {...registerEdit("hubId")}>
+                    <option value="">— No Hub (nation-level role) —</option>
+                    {hubs.map((h) => (
+                      <option key={h.id} value={h.id}>
+                        {h.name} · {h.region}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-1.5">
                   <label className="input-label text-xs">Branch</label>
-                  <input className="input" {...registerEdit("branch")} />
+                  <input className="input-field" placeholder="e.g. Kicukiro" {...registerEdit("branch")} />
                 </div>
                 <div className="space-y-1.5">
                   <label className="input-label text-xs">

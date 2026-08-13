@@ -33,17 +33,17 @@ import { Navbar } from "@/components/Navbar";
 const navItems = [
   {
     label: "Dashboard",
-    path: "/site-engineer",
+    path: "/branch-manager",
     icon: <FileEdit className="w-4 h-4" />,
   },
   {
     label: "New Entry",
-    path: "/site-engineer/entry",
+    path: "/branch-manager/entry",
     icon: <FileEdit className="w-4 h-4" />,
   },
   {
-    label: "History",
-    path: "/site-engineer/history",
+    label: "My History",
+    path: "/branch-manager/history",
     icon: <FileEdit className="w-4 h-4" />,
   },
 ];
@@ -55,10 +55,10 @@ const progressSchema = z
     lineId: z.string().nonempty("Please select a line"),
     voltageLevel: z.enum(["MV", "LV"]),
     transformerId: z.string().nonempty("Please select a transformer"),
-    completedKm: z
+    progressPct: z
       .number({ invalid_type_error: "Must be a number" })
       .min(0, "Cannot be negative")
-      .max(50, "Max 50 km per entry"),
+      .max(100, "Max 100% per entry"),
     transformersInstalled: z
       .number({ invalid_type_error: "Must be a number" })
       .int("Must be whole number")
@@ -121,9 +121,14 @@ export default function ProgressEntryForm() {
   const { addEntry, updateEntry, submitEntry, getEntryById, fetchEntry } = useProgressStore();
   const {
     locations,
-    getLinesByLocation,
+    hubs,
+    branches,
+    getBranchesByHub,
+    getLinesByBranch,
     getTransformersByLine,
     getLineById,
+    getBranchById,
+    getHubById,
     fetchAll,
     initialized: masterInitialized,
   } = useMasterDataStore();
@@ -160,7 +165,7 @@ export default function ProgressEntryForm() {
       lineId: "",
       voltageLevel: "MV",
       transformerId: "",
-      completedKm: 0,
+      progressPct: 0,
       transformersInstalled: 0,
       transformersTerminated: 0,
       transformersTested: 0,
@@ -176,7 +181,7 @@ export default function ProgressEntryForm() {
         lineId: editingEntry.lineId,
         voltageLevel: editingEntry.voltageLevel,
         transformerId: editingEntry.transformerId,
-        completedKm: editingEntry.completedKm,
+        progressPct: editingEntry.progressPct,
         transformersInstalled: editingEntry.transformersInstalled,
         transformersTerminated: editingEntry.transformersTerminated,
         transformersTested: editingEntry.transformersTested,
@@ -189,18 +194,49 @@ export default function ProgressEntryForm() {
   const selectedLineId = watch("lineId");
   const selectedVoltage = watch("voltageLevel");
 
+  const [selectedHubId, setSelectedHubId] = useState<string>("");
+  const [selectedBranchId, setSelectedBranchId] = useState<string>("");
+
+  useEffect(() => {
+    if (editingEntry && editingEntry.lineId && masterInitialized) {
+      const line = getLineById(editingEntry.lineId);
+      if (line) {
+        setSelectedBranchId(line.branchId);
+        const branch = getBranchById(line.branchId);
+        if (branch) {
+          setSelectedHubId(branch.hubId);
+        }
+      }
+    }
+  }, [editingEntry, masterInitialized, getLineById, getBranchById]);
+
+  const availableBranches = useMemo(() => {
+    return selectedHubId ? getBranchesByHub(selectedHubId) : branches;
+  }, [selectedHubId, getBranchesByHub, branches]);
+
   const availableLines = useMemo(() => {
-    const lines = selectedLocationId ? getLinesByLocation(selectedLocationId) : [];
+    const lines = selectedBranchId ? getLinesByBranch(selectedBranchId) : [];
     return lines.filter((l) => l.voltageLevel === selectedVoltage);
-  }, [selectedLocationId, selectedVoltage, getLinesByLocation]);
+  }, [selectedBranchId, selectedVoltage, getLinesByBranch]);
 
   const availableTransformers = useMemo(() => {
     return selectedLineId ? getTransformersByLine(selectedLineId) : [];
   }, [selectedLineId, getTransformersByLine]);
 
   useEffect(() => {
-    if (selectedVoltage && selectedLocationId) {
-      const lines = getLinesByLocation(selectedLocationId).filter(
+    setSelectedBranchId("");
+    setValue("lineId", "", { shouldDirty: true });
+    setValue("transformerId", "", { shouldDirty: true });
+  }, [selectedHubId, setValue]);
+
+  useEffect(() => {
+    setValue("lineId", "", { shouldDirty: true });
+    setValue("transformerId", "", { shouldDirty: true });
+  }, [selectedBranchId, selectedVoltage, setValue]);
+
+  useEffect(() => {
+    if (selectedBranchId && selectedVoltage) {
+      const lines = getLinesByBranch(selectedBranchId).filter(
         (l) => l.voltageLevel === selectedVoltage
       );
       if (!lines.find((l) => l.id === selectedLineId)) {
@@ -208,7 +244,7 @@ export default function ProgressEntryForm() {
         setValue("transformerId", "", { shouldDirty: true });
       }
     }
-  }, [selectedVoltage, selectedLocationId, selectedLineId, getLinesByLocation, setValue]);
+  }, [selectedVoltage, selectedBranchId, selectedLineId, getLinesByBranch, setValue]);
 
   useEffect(() => {
     const transformers = getTransformersByLine(selectedLineId);
@@ -241,7 +277,7 @@ export default function ProgressEntryForm() {
       }
       showToast("success", "Draft Saved", "Your progress entry has been saved as draft.");
     }
-    setTimeout(() => navigate("/site-engineer/history"), 1200);
+    setTimeout(() => navigate("/branch-manager/history"), 1200);
   };
 
   const onSubmitReview = async (data: FormValues) => {
@@ -272,9 +308,9 @@ export default function ProgressEntryForm() {
     showToast(
       "success",
       "Submitted for Review",
-      "Your progress entry has been sent to Branch Manager for approval."
+      "Your progress entry has been sent to Hub Manager for approval."
     );
-    setTimeout(() => navigate("/site-engineer/history"), 1500);
+    setTimeout(() => navigate("/branch-manager/history"), 1500);
   };
 
   const NumericStepper = ({
@@ -359,7 +395,7 @@ export default function ProgressEntryForm() {
   return (
     <div className="min-h-screen bg-electric-grid">
       <Navbar
-        role="site_engineer"
+        role="branch_manager"
         navItems={navItems.map((item, i) => ({
           ...item,
           label: i === 0 ? "Dashboard" : i === 1 ? "New Entry" : "History",
@@ -372,7 +408,7 @@ export default function ProgressEntryForm() {
               <FileEdit className="w-4 h-4" />
             ),
         }))}
-        title="Site Engineer Portal"
+        title="Branch Manager Portal"
       />
 
       <main className="container py-8 max-w-5xl space-y-6">
@@ -383,7 +419,7 @@ export default function ProgressEntryForm() {
         >
           <div className="flex items-center gap-3">
             <Link
-              to="/site-engineer"
+              to="/branch-manager"
               className="p-2 rounded-xl text-slate-600 hover:text-brand-800 hover:bg-brand-50 transition-colors"
             >
               <ArrowLeft className="w-5 h-5" />
@@ -483,7 +519,7 @@ export default function ProgressEntryForm() {
                 <label className="input-label">
                   <span className="flex items-center gap-1.5">
                     <MapPin className="w-3.5 h-3.5" />
-                    Address / Location
+                    Site Location
                   </span>
                 </label>
                 <select
@@ -491,7 +527,7 @@ export default function ProgressEntryForm() {
                   disabled={isLocked}
                   {...register("locationId")}
                 >
-                  <option value="">— Select a location —</option>
+                  <option value="">— Select a site location —</option>
                   {locations.map((loc) => (
                     <option key={loc.id} value={loc.id}>
                       {loc.name} — {loc.governorate}
@@ -509,8 +545,58 @@ export default function ProgressEntryForm() {
               <div>
                 <label className="input-label">
                   <span className="flex items-center gap-1.5">
+                    <Boxes className="w-3.5 h-3.5" />
+                    Hub
+                  </span>
+                </label>
+                <select
+                  className="input-field"
+                  disabled={isLocked}
+                  value={selectedHubId}
+                  onChange={(e) => setSelectedHubId(e.target.value)}
+                >
+                  <option value="">— Select a hub —</option>
+                  {hubs.map((h) => (
+                    <option key={h.id} value={h.id}>
+                      {h.name} ({h.region})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="input-label">
+                  <span className="flex items-center gap-1.5">
+                    <CircleDot className="w-3.5 h-3.5" />
+                    Branch
+                  </span>
+                </label>
+                <select
+                  className="input-field"
+                  disabled={isLocked || availableBranches.length === 0}
+                  value={selectedBranchId}
+                  onChange={(e) => setSelectedBranchId(e.target.value)}
+                >
+                  <option value="">
+                    {availableBranches.length === 0
+                      ? selectedHubId
+                        ? "No branches under this hub"
+                        : "— First select a hub —"
+                      : "— Select a branch —"}
+                  </option>
+                  {availableBranches.map((b) => (
+                    <option key={b.id} value={b.id}>
+                      {b.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="input-label">
+                  <span className="flex items-center gap-1.5">
                     <Power className="w-3.5 h-3.5" />
-                    Line Name
+                    Line / Feeder
                   </span>
                 </label>
                 <select
@@ -520,7 +606,9 @@ export default function ProgressEntryForm() {
                 >
                   <option value="">
                     {availableLines.length === 0
-                      ? `No ${selectedVoltage} lines at this location`
+                      ? selectedBranchId
+                        ? `No ${selectedVoltage} lines under this branch`
+                        : "— First select a branch —"
                       : "— Select a line —"}
                   </option>
                   {availableLines.map((line) => (
@@ -563,10 +651,22 @@ export default function ProgressEntryForm() {
                   ))}
                 </select>
                 {selectedLineId && getLineById(selectedLineId) && (
-                  <p className="text-xs text-slate-500 mt-1 flex items-center gap-1">
+                  <p className="text-xs text-slate-500 mt-1 flex items-center gap-1 flex-wrap">
                     <Info className="w-3 h-3 text-brand-500" />
-                    Line: {getLineById(selectedLineId)?.name} (
-                    {getLineById(selectedLineId)?.voltageLevel})
+                    <span>
+                      Line: <b>{getLineById(selectedLineId)?.name}</b> (
+                      {getLineById(selectedLineId)?.voltageLevel})
+                      {selectedBranchId && getBranchById(selectedBranchId) && (
+                        <>
+                          {" · "}Branch: <b>{getBranchById(selectedBranchId)?.name}</b>
+                        </>
+                      )}
+                      {selectedHubId && getHubById(selectedHubId) && (
+                        <>
+                          {" · "}Hub: <b>{getHubById(selectedHubId)?.name}</b>
+                        </>
+                      )}
+                    </span>
                   </p>
                 )}
                 {errors.transformerId && (
@@ -603,10 +703,10 @@ export default function ProgressEntryForm() {
               <div className="flex items-start justify-between mb-3">
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-wider text-brand-700 mb-1">
-                    Completed Kilometres
+                    Progress Percentage
                   </p>
                   <p className="text-xs text-slate-600">
-                    Cable length laid today (km)
+                    Percentage of work completed today (%)
                   </p>
                 </div>
               </div>
@@ -614,22 +714,22 @@ export default function ProgressEntryForm() {
                 <div className="flex-1 relative">
                   <input
                     type="number"
-                    step="0.001"
+                    step="0.1"
                     min="0"
-                    max="50"
+                    max="100"
                     className="input-field !text-xl !font-display !font-bold !text-brand-900 !py-3.5 pr-14"
                     disabled={isLocked}
-                    {...register("completedKm", { valueAsNumber: true })}
+                    {...register("progressPct", { valueAsNumber: true })}
                   />
                   <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-bold text-brand-700">
-                    km
+                    %
                   </span>
                 </div>
               </div>
-              {errors.completedKm && (
+              {errors.progressPct && (
                 <p className="text-xs text-rose-600 mt-2 flex items-center gap-1">
                   <AlertCircle className="w-3 h-3" />
-                  {errors.completedKm.message}
+                  {errors.progressPct.message}
                 </p>
               )}
             </div>
@@ -689,7 +789,7 @@ export default function ProgressEntryForm() {
             transition={{ delay: 0.2 }}
             className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-4 pt-2 pb-4"
           >
-            <Link to="/site-engineer/history" className="btn-secondary justify-center sm:justify-start">
+            <Link to="/branch-manager/history" className="btn-secondary justify-center sm:justify-start">
               <ArrowLeft className="w-4 h-4" />
               Cancel / View History
             </Link>

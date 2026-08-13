@@ -13,6 +13,8 @@ import {
   ArrowRight,
   Clock,
   FileQuestion,
+  ClipboardList,
+  BookOpen,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useAuthStore } from "@/store/authStore";
@@ -23,9 +25,11 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { useMasterDataStore } from "@/store/masterDataStore";
 
 const navItems = [
-  { label: "Dashboard", path: "/site-engineer", icon: <LayoutDashboard className="w-4 h-4" /> },
-  { label: "New Entry", path: "/site-engineer/entry", icon: <FileEdit className="w-4 h-4" /> },
-  { label: "History", path: "/site-engineer/history", icon: <History className="w-4 h-4" /> },
+  { label: "Dashboard", path: "/branch-manager", icon: <LayoutDashboard className="w-4 h-4" /> },
+  { label: "New Entry", path: "/branch-manager/entry", icon: <FileEdit className="w-4 h-4" /> },
+  { label: "My History", path: "/branch-manager/history", icon: <History className="w-4 h-4" /> },
+  { label: "Pending Reviews", path: "/branch-manager", icon: <ClipboardList className="w-4 h-4" /> },
+  { label: "Published", path: "/branch-manager/published", icon: <BookOpen className="w-4 h-4" /> },
 ];
 
 export default function SiteEngineerDashboard() {
@@ -61,7 +65,10 @@ export default function SiteEngineerDashboard() {
       submitted: entries.filter((e) => e.status === "submitted").length,
       published: entries.filter((e) => e.status === "published").length,
       rejected: entries.filter((e) => e.status === "rejected").length,
-      totalKm: entries.reduce((sum, e) => sum + e.completedKm, 0),
+      avgProgress:
+        entries.length > 0
+          ? entries.reduce((sum, e) => sum + e.progressPct, 0) / entries.length
+          : 0,
       transformersCommissioned: entries.reduce(
         (sum, e) => sum + e.transformersCommissioned,
         0
@@ -74,7 +81,7 @@ export default function SiteEngineerDashboard() {
 
   return (
     <div className="min-h-screen bg-electric-grid">
-      <Navbar role="site_engineer" navItems={navItems} title="Site Engineer Portal" />
+      <Navbar role="branch_manager" navItems={navItems} title="Branch Manager Portal" />
 
       <main className="container py-6 space-y-6">
         <motion.div
@@ -99,7 +106,7 @@ export default function SiteEngineerDashboard() {
               {user?.branch && ` · ${user.branch}`}
             </p>
           </div>
-          <Link to="/site-engineer/entry" className="inline-flex items-center justify-center gap-2 rounded-xl bg-brand-800 px-4 py-2 text-xs font-semibold text-white shadow-sm transition-all duration-200 hover:bg-brand-700 hover:shadow-md hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 active:translate-y-0 disabled:opacity-50 disabled:cursor-not-allowed">
+          <Link to="/branch-manager/entry" className="inline-flex items-center justify-center gap-2 rounded-xl bg-brand-800 px-4 py-2 text-xs font-semibold text-white shadow-sm transition-all duration-200 hover:bg-brand-700 hover:shadow-md hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 active:translate-y-0 disabled:opacity-50 disabled:cursor-not-allowed">
             <FileEdit className="w-4 h-4" />
             Add New Progress Entry
           </Link>
@@ -171,25 +178,25 @@ export default function SiteEngineerDashboard() {
                 <div className="flex items-center gap-1.5 mb-0.5">
                   <Gauge className="w-3.5 h-3.5 text-brand-700" />
                   <p className="text-[11px] font-semibold uppercase tracking-wider text-brand-700">
-                    Cable Completed
+                    Average Progress
                   </p>
                 </div>
                 <p className="font-display text-3xl font-bold text-brand-900 leading-tight tracking-tight">
-                  {stats.totalKm.toFixed(2)}
+                  {stats.avgProgress.toFixed(1)}
                   <span className="ml-1 text-sm font-semibold text-brand-700">
-                    km
+                    %
                   </span>
                 </p>
                 <div className="mt-2 h-1.5 w-full bg-white/80 rounded-full overflow-hidden">
                   <motion.div
                     initial={{ width: 0 }}
-                    animate={{ width: `${Math.min((stats.totalKm / 50) * 100, 100)}%` }}
+                    animate={{ width: `${Math.min(stats.avgProgress, 100)}%` }}
                     transition={{ duration: 1, delay: 0.6 }}
                     className="h-full bg-gradient-to-r from-brand-500 to-brand-700 rounded-full"
                   />
                 </div>
                 <p className="text-[11px] text-brand-600 mt-1.5 font-medium">
-                  Target: 50.00 km total
+                  Average across {entries.length} entries
                 </p>
               </div>
 
@@ -243,7 +250,7 @@ export default function SiteEngineerDashboard() {
 
             <div className="space-y-2">
               <Link
-                to="/site-engineer/entry"
+                to="/branch-manager/entry"
                 className="group flex items-center gap-3 p-3 rounded-2xl bg-gradient-to-r from-brand-50 to-white border border-brand-100 hover:border-brand-300 hover:shadow-md transition-all"
               >
                 <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-brand-600 text-white shadow-sm group-hover:scale-105 transition-transform">
@@ -261,7 +268,7 @@ export default function SiteEngineerDashboard() {
               </Link>
 
               <Link
-                to="/site-engineer/history"
+                to="/branch-manager/history"
                 className="group flex items-center gap-3 p-3 rounded-2xl bg-slate-50 border border-slate-200 hover:border-slate-300 hover:bg-white hover:shadow-md transition-all"
               >
                 <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-slate-700 text-white shadow-sm group-hover:scale-105 transition-transform">
@@ -280,7 +287,7 @@ export default function SiteEngineerDashboard() {
 
               {needsAttention.length > 0 && (
                 <Link
-                  to="/site-engineer/history"
+                  to="/branch-manager/history"
                   className="group flex items-center gap-3 p-3 rounded-2xl bg-rose-50 border border-rose-200 hover:border-rose-300 hover:shadow-md transition-all animate-pulse"
                 >
                   <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-rose-600 text-white shadow-sm group-hover:scale-105 transition-transform">
@@ -316,7 +323,7 @@ export default function SiteEngineerDashboard() {
                 Your latest progress entries and their status
               </p>
             </div>
-            <Link to="/site-engineer/history" className="inline-flex items-center justify-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-600 transition-all duration-200 hover:bg-slate-100 hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-300 text-brand-700 hover:bg-brand-50">
+            <Link to="/branch-manager/history" className="inline-flex items-center justify-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-600 transition-all duration-200 hover:bg-slate-100 hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-300 text-brand-700 hover:bg-brand-50">
               View All
               <ArrowRight className="w-3.5 h-3.5" />
             </Link>
@@ -333,7 +340,7 @@ export default function SiteEngineerDashboard() {
                     Location / Line
                   </th>
                   <th className="text-right text-[11px] font-semibold uppercase tracking-wider text-slate-500 pb-2.5 pr-3">
-                    Completed (km)
+                    Progress (%)
                   </th>
                   <th className="text-right text-[11px] font-semibold uppercase tracking-wider text-slate-500 pb-2.5 pr-3">
                     TRSFO Status
@@ -356,7 +363,7 @@ export default function SiteEngineerDashboard() {
                           Submit your first progress entry to get started
                         </p>
                         <Link
-                          to="/site-engineer/entry"
+                          to="/branch-manager/entry"
                           className="mt-2 inline-flex items-center justify-center gap-2 rounded-xl bg-brand-800 px-4 py-2 text-xs font-semibold text-white shadow-sm transition-all duration-200 hover:bg-brand-700"
                         >
                           <FileEdit className="w-3.5 h-3.5" />
@@ -408,9 +415,9 @@ export default function SiteEngineerDashboard() {
                       </td>
                       <td className="py-3 pr-3 text-right">
                         <p className="font-display text-sm font-bold text-brand-800">
-                          {entry.completedKm.toFixed(2)}
+                          {entry.progressPct.toFixed(1)}%
                         </p>
-                        <p className="text-[11px] text-slate-500">kilometers</p>
+                        <p className="text-[11px] text-slate-500">progress</p>
                       </td>
                       <td className="py-3 pr-3 text-right">
                         <p className="text-xs font-semibold text-slate-800 leading-tight">

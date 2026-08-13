@@ -7,9 +7,18 @@ const router = express.Router();
 
 router.get('/locations', authenticateJWT, async (req, res, next) => {
   try {
-    const [rows] = await pool.query(
-      'SELECT id, name, address, governorate FROM locations ORDER BY name'
-    );
+    const { hubId } = req.query;
+    let sql = `SELECT l.id, l.name, l.address, l.governorate, l.hub_id AS hubId,
+                      h.name AS hubName
+               FROM locations l
+               LEFT JOIN hubs h ON l.hub_id = h.id`;
+    const params = [];
+    if (hubId) {
+      sql += ' WHERE l.hub_id = ?';
+      params.push(hubId);
+    }
+    sql += ' ORDER BY l.name';
+    const [rows] = await pool.query(sql, params);
     return res.json({ success: true, data: rows });
   } catch (err) {
     next(err);
@@ -18,13 +27,13 @@ router.get('/locations', authenticateJWT, async (req, res, next) => {
 
 router.get('/lines', authenticateJWT, async (req, res, next) => {
   try {
-    const { locationId } = req.query;
+    const { branchId } = req.query;
     let sql =
-      'SELECT id, name, voltage_level AS voltageLevel, location_id AS locationId FROM `lines`';
+      'SELECT id, name, voltage_level AS voltageLevel, branch_id AS branchId FROM `lines`';
     const params = [];
-    if (locationId) {
-      sql += ' WHERE location_id = ?';
-      params.push(locationId);
+    if (branchId) {
+      sql += ' WHERE branch_id = ?';
+      params.push(branchId);
     }
     sql += ' ORDER BY name';
     const [rows] = await pool.query(sql, params);
@@ -56,19 +65,20 @@ router.get('/transformers', authenticateJWT, async (req, res, next) => {
 // LOCATIONS CRUD
 // ============================================================
 
-router.post('/locations', authenticateJWT, requireRoles('planning', 'trusted_admin'), async (req, res, next) => {
+router.post('/locations', authenticateJWT, requireRoles('hub_manager', 'admin'), async (req, res, next) => {
   try {
-    const { name, address, governorate } = req.body;
+    const { name, address, governorate, hubId } = req.body;
     if (!name || !address || !governorate) {
       return res.status(400).json({ error: 'Name, address, and governorate are required' });
     }
     const id = uuidv4();
     await pool.query(
-      'INSERT INTO locations (id, name, address, governorate) VALUES (?, ?, ?, ?)',
-      [id, name, address, governorate]
+      'INSERT INTO locations (id, name, address, governorate, hub_id) VALUES (?, ?, ?, ?, ?)',
+      [id, name, address, governorate, hubId || null]
     );
     const [rows] = await pool.query(
-      'SELECT id, name, address, governorate FROM locations WHERE id = ?',
+      `SELECT l.id, l.name, l.address, l.governorate, l.hub_id AS hubId, h.name AS hubName
+       FROM locations l LEFT JOIN hubs h ON l.hub_id = h.id WHERE l.id = ?`,
       [id]
     );
     return res.status(201).json({ success: true, data: rows[0] });
@@ -77,7 +87,7 @@ router.post('/locations', authenticateJWT, requireRoles('planning', 'trusted_adm
   }
 });
 
-router.patch('/locations/:id', authenticateJWT, requireRoles('planning', 'trusted_admin'), async (req, res, next) => {
+router.patch('/locations/:id', authenticateJWT, requireRoles('hub_manager', 'admin'), async (req, res, next) => {
   try {
     const { id } = req.params;
     const { name, address, governorate } = req.body;
@@ -102,7 +112,7 @@ router.patch('/locations/:id', authenticateJWT, requireRoles('planning', 'truste
   }
 });
 
-router.delete('/locations/:id', authenticateJWT, requireRoles('planning', 'trusted_admin'), async (req, res, next) => {
+router.delete('/locations/:id', authenticateJWT, requireRoles('hub_manager', 'admin'), async (req, res, next) => {
   try {
     const { id } = req.params;
     const [result] = await pool.query('DELETE FROM locations WHERE id = ?', [id]);
@@ -119,19 +129,19 @@ router.delete('/locations/:id', authenticateJWT, requireRoles('planning', 'trust
 // LINES CRUD
 // ============================================================
 
-router.post('/lines', authenticateJWT, requireRoles('planning', 'trusted_admin'), async (req, res, next) => {
+router.post('/lines', authenticateJWT, requireRoles('hub_manager', 'admin'), async (req, res, next) => {
   try {
-    const { name, voltageLevel, locationId } = req.body;
-    if (!name || !voltageLevel || !locationId) {
-      return res.status(400).json({ error: 'Name, voltage level, and location ID are required' });
+    const { name, voltageLevel, branchId } = req.body;
+    if (!name || !voltageLevel || !branchId) {
+      return res.status(400).json({ error: 'Name, voltage level, and branch ID are required' });
     }
     const id = uuidv4();
     await pool.query(
-      'INSERT INTO `lines` (id, name, voltage_level, location_id) VALUES (?, ?, ?, ?)',
-      [id, name, voltageLevel, locationId]
+      'INSERT INTO `lines` (id, name, voltage_level, branch_id) VALUES (?, ?, ?, ?)',
+      [id, name, voltageLevel, branchId]
     );
     const [rows] = await pool.query(
-      'SELECT id, name, voltage_level AS voltageLevel, location_id AS locationId FROM `lines` WHERE id = ?',
+      'SELECT id, name, voltage_level AS voltageLevel, branch_id AS branchId FROM `lines` WHERE id = ?',
       [id]
     );
     return res.status(201).json({ success: true, data: rows[0] });
@@ -140,23 +150,23 @@ router.post('/lines', authenticateJWT, requireRoles('planning', 'trusted_admin')
   }
 });
 
-router.patch('/lines/:id', authenticateJWT, requireRoles('planning', 'trusted_admin'), async (req, res, next) => {
+router.patch('/lines/:id', authenticateJWT, requireRoles('hub_manager', 'admin'), async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { name, voltageLevel, locationId } = req.body;
+    const { name, voltageLevel, branchId } = req.body;
     const [result] = await pool.query(
       `UPDATE \`lines\` SET
          name = COALESCE(?, name),
          voltage_level = COALESCE(?, voltage_level),
-         location_id = COALESCE(?, location_id)
+         branch_id = COALESCE(?, branch_id)
        WHERE id = ?`,
-      [name || null, voltageLevel || null, locationId ?? null, id]
+      [name || null, voltageLevel || null, branchId ?? null, id]
     );
     if (result.affectedRows === 0) {
       return res.status(404).json({ error: 'Line not found' });
     }
     const [rows] = await pool.query(
-      'SELECT id, name, voltage_level AS voltageLevel, location_id AS locationId FROM `lines` WHERE id = ?',
+      'SELECT id, name, voltage_level AS voltageLevel, branch_id AS branchId FROM `lines` WHERE id = ?',
       [id]
     );
     return res.json({ success: true, data: rows[0] });
@@ -165,7 +175,7 @@ router.patch('/lines/:id', authenticateJWT, requireRoles('planning', 'trusted_ad
   }
 });
 
-router.delete('/lines/:id', authenticateJWT, requireRoles('planning', 'trusted_admin'), async (req, res, next) => {
+router.delete('/lines/:id', authenticateJWT, requireRoles('hub_manager', 'admin'), async (req, res, next) => {
   try {
     const { id } = req.params;
     const [result] = await pool.query('DELETE FROM `lines` WHERE id = ?', [id]);
@@ -182,7 +192,7 @@ router.delete('/lines/:id', authenticateJWT, requireRoles('planning', 'trusted_a
 // TRANSFORMERS CRUD
 // ============================================================
 
-router.post('/transformers', authenticateJWT, requireRoles('planning', 'trusted_admin'), async (req, res, next) => {
+router.post('/transformers', authenticateJWT, requireRoles('hub_manager', 'admin'), async (req, res, next) => {
   try {
     const { name, serialNumber, capacityKVA, lineId } = req.body;
     if (!name || !serialNumber || !capacityKVA || !lineId) {
@@ -206,7 +216,7 @@ router.post('/transformers', authenticateJWT, requireRoles('planning', 'trusted_
   }
 });
 
-router.patch('/transformers/:id', authenticateJWT, requireRoles('planning', 'trusted_admin'), async (req, res, next) => {
+router.patch('/transformers/:id', authenticateJWT, requireRoles('hub_manager', 'admin'), async (req, res, next) => {
   try {
     const { id } = req.params;
     const { name, serialNumber, capacityKVA, lineId } = req.body;
@@ -232,7 +242,7 @@ router.patch('/transformers/:id', authenticateJWT, requireRoles('planning', 'tru
   }
 });
 
-router.delete('/transformers/:id', authenticateJWT, requireRoles('planning', 'trusted_admin'), async (req, res, next) => {
+router.delete('/transformers/:id', authenticateJWT, requireRoles('hub_manager', 'admin'), async (req, res, next) => {
   try {
     const { id } = req.params;
     const [result] = await pool.query('DELETE FROM transformers WHERE id = ?', [id]);

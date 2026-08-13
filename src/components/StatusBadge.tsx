@@ -1,4 +1,4 @@
-import { CheckCircle2, Clock, Eye, FileEdit, Shield, ShieldX, XCircle } from "lucide-react";
+import { CheckCircle2, Clock, Eye, FileEdit, Shield, ShieldCheck, ShieldX, XCircle } from "lucide-react";
 import type { EntryStatus, UserRole } from "@/types";
 import { statusLabels, roleLabels } from "@/types";
 
@@ -33,19 +33,21 @@ interface RoleBadgeProps {
 
 export function RoleBadge({ role, className = "" }: RoleBadgeProps) {
   const icon =
-    role === "site_engineer" || role === "branch_manager" ? (
+    role === "branch_manager" ? (
       <Shield className="w-3 h-3" />
+    ) : role === "hub_manager" ? (
+      <ShieldCheck className="w-3 h-3" />
+    ) : role === "senior_manager" ? (
+      <ShieldX className="w-3 h-3" />
     ) : (
       <ShieldX className="w-3 h-3" />
     );
 
   const styles: Record<UserRole, string> = {
-    site_engineer: "bg-blue-50 text-blue-700 border border-blue-200",
-    branch_manager: "bg-emerald-50 text-emerald-700 border border-emerald-200",
-    planning: "bg-violet-50 text-violet-700 border border-violet-200",
-    senior_management: "bg-amber-50 text-amber-700 border border-amber-200",
-    it_engineer: "bg-slate-100 text-slate-700 border border-slate-200",
-    trusted_admin: "bg-rose-50 text-rose-700 border border-rose-200",
+    branch_manager: "bg-blue-50 text-blue-700 border border-blue-200",
+    hub_manager: "bg-emerald-50 text-emerald-700 border border-emerald-200",
+    senior_manager: "bg-amber-50 text-amber-700 border border-amber-200",
+    admin: "bg-rose-50 text-rose-700 border border-rose-200",
   };
 
   return (

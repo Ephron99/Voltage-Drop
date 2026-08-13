@@ -39,7 +39,7 @@ const navItems = [
   },
 ];
 
-type SortField = "entryDate" | "publishedAt" | "locationId" | "completedKm";
+type SortField = "entryDate" | "publishedAt" | "locationId" | "progressPct";
 type SortDir = "asc" | "desc";
 
 export default function PublishedRecords() {
@@ -114,8 +114,8 @@ export default function PublishedRecords() {
             getLocationName(b.locationId)
           );
           break;
-        case "completedKm":
-          cmp = a.completedKm - b.completedKm;
+        case "progressPct":
+          cmp = a.progressPct - b.progressPct;
           break;
       }
       return sortDir === "asc" ? cmp : -cmp;
@@ -135,8 +135,12 @@ export default function PublishedRecords() {
     getTransformerName,
   ]);
 
-  const totalKm = useMemo(
-    () => filteredEntries.reduce((sum, e) => sum + e.completedKm, 0),
+  const avgProgress = useMemo(
+    () =>
+      filteredEntries.length > 0
+        ? filteredEntries.reduce((sum, e) => sum + e.progressPct, 0) /
+          filteredEntries.length
+        : 0,
     [filteredEntries]
   );
   const totalCommissioned = useMemo(
@@ -169,7 +173,7 @@ export default function PublishedRecords() {
       <Navbar
         role="branch_manager"
         navItems={navItems}
-        title="Branch Manager Portal"
+        title="Hub Manager Portal"
       />
 
       <main className="container py-8 space-y-6">
@@ -219,13 +223,13 @@ export default function PublishedRecords() {
           <div className="card p-5">
             <div className="flex items-center justify-between mb-1">
               <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">
-                Total Cable Length
+                Average Progress
               </p>
               <Zap className="w-4 h-4 text-brand-600 fill-current" />
             </div>
             <p className="font-display text-3xl font-bold text-brand-900 tracking-tight">
-              {totalKm.toFixed(2)}
-              <span className="ml-1 text-sm font-semibold text-brand-700">km</span>
+              {avgProgress.toFixed(1)}
+              <span className="ml-1 text-sm font-semibold text-brand-700">%</span>
             </p>
           </div>
           <div className="card p-5">
@@ -379,23 +383,23 @@ export default function PublishedRecords() {
                     </button>
                   </th>
                   <th className="text-left pr-4 pb-3 text-xs font-semibold uppercase tracking-wider text-slate-500">
-                    Site Engineer
+                    Branch Manager
                   </th>
                   <th className="text-left pr-4 pb-3 text-xs font-semibold uppercase tracking-wider text-slate-500">
                     Location / Line / TRSFO
                   </th>
                   <th className="text-right pr-4 pb-3">
                     <button
-                      onClick={() => toggleSort("completedKm")}
+                      onClick={() => toggleSort("progressPct")}
                       className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-slate-500 hover:text-slate-700 ml-auto transition-colors"
                     >
                       Progress
                       <ArrowUpDown
                         className={`w-3 h-3 transition-transform ${
-                          sortField === "completedKm" && sortDir === "asc"
+                          sortField === "progressPct" && sortDir === "asc"
                             ? "rotate-180"
                             : ""
-                        } ${sortField === "completedKm" ? "text-brand-700" : ""}`}
+                        } ${sortField === "progressPct" ? "text-brand-700" : ""}`}
                       />
                     </button>
                   </th>
@@ -480,7 +484,7 @@ export default function PublishedRecords() {
                                 {entry.siteEngineerName ?? "—"}
                               </p>
                               <p className="text-[11px] text-slate-500">
-                                Site Engineer
+                                Branch Manager
                               </p>
                             </div>
                           </div>
@@ -503,10 +507,7 @@ export default function PublishedRecords() {
                         </td>
                         <td className="py-4 pr-4 text-right">
                           <p className="font-display text-lg font-bold text-brand-800 leading-none">
-                            {entry.completedKm.toFixed(2)}
-                            <span className="ml-1 text-xs font-semibold text-slate-500">
-                              km
-                            </span>
+                            {entry.progressPct.toFixed(1)}%
                           </p>
                           <div className="mt-1.5 inline-flex flex-wrap justify-end gap-0.5">
                             {entry.transformersCommissioned > 0 && (

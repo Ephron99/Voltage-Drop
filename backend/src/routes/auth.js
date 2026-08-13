@@ -12,7 +12,11 @@ router.post('/login', validate(loginSchema), async (req, res, next) => {
   try {
     const { email, password, role } = req.validated;
     const [rows] = await pool.query(
-      'SELECT id, email, password_hash, full_name, role, branch FROM users WHERE email = ? AND role = ? LIMIT 1',
+      `SELECT u.id, u.email, u.password_hash, u.full_name, u.role, u.branch,
+              u.hub_id, h.name AS hub_name, h.region AS hub_region
+       FROM users u
+       LEFT JOIN hubs h ON u.hub_id = h.id
+       WHERE u.email = ? AND u.role = ? LIMIT 1`,
       [email, role]
     );
     if (rows.length === 0) {
@@ -24,7 +28,7 @@ router.post('/login', validate(loginSchema), async (req, res, next) => {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
     const token = jwt.sign(
-      { id: user.id, role: user.role, name: user.full_name },
+      { id: user.id, role: user.role, name: user.full_name, hubId: user.hub_id || null },
       env.JWT_SECRET,
       { expiresIn: env.JWT_EXPIRES_IN }
     );
@@ -39,6 +43,9 @@ router.post('/login', validate(loginSchema), async (req, res, next) => {
           name: user.full_name,
           role: user.role,
           branch: user.branch || null,
+          hubId: user.hub_id || null,
+          hubName: user.hub_name || null,
+          hubRegion: user.hub_region || null,
         },
         expiresIn: env.JWT_EXPIRES_IN,
       },
@@ -51,7 +58,12 @@ router.post('/login', validate(loginSchema), async (req, res, next) => {
 router.get('/me', authenticateJWT, async (req, res, next) => {
   try {
     const [rows] = await pool.query(
-      'SELECT id, email, full_name AS name, role, branch, created_at AS createdAt, last_login_at AS lastLoginAt FROM users WHERE id = ? LIMIT 1',
+      `SELECT u.id, u.email, u.full_name AS name, u.role, u.branch,
+              u.hub_id AS hubId, h.name AS hubName, h.region AS hubRegion,
+              u.created_at AS createdAt, u.last_login_at AS lastLoginAt
+       FROM users u
+       LEFT JOIN hubs h ON u.hub_id = h.id
+       WHERE u.id = ? LIMIT 1`,
       [req.user.id]
     );
     if (rows.length === 0) {

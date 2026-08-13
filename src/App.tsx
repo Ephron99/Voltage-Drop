@@ -1,22 +1,28 @@
 import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import { useEffect } from "react";
 import Login from "@/pages/Login";
-import SiteEngineerDashboard from "@/pages/site-engineer/SiteEngineerDashboard";
+
+// Branch Manager portal (covers field data entry + review)
 import ProgressEntryForm from "@/pages/site-engineer/ProgressEntryForm";
 import SubmissionHistory from "@/pages/site-engineer/SubmissionHistory";
 import BranchManagerDashboard from "@/pages/branch-manager/BranchManagerDashboard";
 import ReviewEntry from "@/pages/branch-manager/ReviewEntry";
 import PublishedRecords from "@/pages/branch-manager/PublishedRecords";
-import SeniorManagementDashboard from "@/pages/senior-management/SeniorManagementDashboard";
-import ManagementRecords from "@/pages/senior-management/ManagementRecords";
-import ITEngineerDashboard from "@/pages/it-engineer/ITEngineerDashboard";
-import UserManagement from "@/pages/it-engineer/UserManagement";
-import SystemMaintenance from "@/pages/it-engineer/SystemMaintenance";
+
+// Hub Manager portal (planning + network assets + progress monitor)
 import PlanningDashboard from "@/pages/planning/PlanningDashboard";
 import Projects from "@/pages/planning/Projects";
 import ProjectDetail from "@/pages/planning/ProjectDetail";
 import NetworkAssets from "@/pages/planning/NetworkAssets";
 import ProgressMonitor from "@/pages/planning/ProgressMonitor";
+
+// Senior Manager + Admin portal
+import SeniorManagementDashboard from "@/pages/senior-management/SeniorManagementDashboard";
+import ManagementRecords from "@/pages/senior-management/ManagementRecords";
+import ITEngineerDashboard from "@/pages/it-engineer/ITEngineerDashboard";
+import UserManagement from "@/pages/it-engineer/UserManagement";
+import SystemMaintenance from "@/pages/it-engineer/SystemMaintenance";
+
 import { ProtectedRoute, RedirectIfAuthenticated } from "@/components/ProtectedRoute";
 import { useAuthStore, roleHomeRoute } from "@/store/authStore";
 import { Zap } from "lucide-react";
@@ -50,8 +56,7 @@ function RootRedirect() {
 
 function NotFound() {
   const { isAuthenticated, user } = useAuthStore();
-  const backTo =
-    isAuthenticated && user ? roleHomeRoute[user.role] : "/login";
+  const backTo = isAuthenticated && user ? roleHomeRoute[user.role] : "/login";
   return (
     <div className="min-h-screen flex items-center justify-center bg-electric-grid px-4">
       <div className="max-w-md w-full text-center space-y-6 card p-8">
@@ -62,12 +67,9 @@ function NotFound() {
           <p className="font-display text-7xl font-bold tracking-tighter">
             4<span className="text-brand-700">0</span>4
           </p>
-          <h1 className="font-display text-2xl font-bold text-slate-900">
-            Page Not Found
-          </h1>
+          <h1 className="font-display text-2xl font-bold text-slate-900">Page Not Found</h1>
           <p className="text-sm text-slate-500 leading-relaxed">
-            The page you're looking for doesn't exist or has been moved. Let's
-            get you back on track.
+            The page you're looking for doesn't exist or has been moved.
           </p>
         </div>
         <button
@@ -95,39 +97,8 @@ export default function App() {
           }
         />
 
-        <Route
-          path="/site-engineer"
-          element={
-            <ProtectedRoute allowedRoles={["site_engineer"]}>
-              <SiteEngineerDashboard />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/site-engineer/entry"
-          element={
-            <ProtectedRoute allowedRoles={["site_engineer"]}>
-              <ProgressEntryForm />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/site-engineer/entry/:id"
-          element={
-            <ProtectedRoute allowedRoles={["site_engineer"]}>
-              <ProgressEntryForm />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/site-engineer/history"
-          element={
-            <ProtectedRoute allowedRoles={["site_engineer"]}>
-              <SubmissionHistory />
-            </ProtectedRoute>
-          }
-        />
-
+        {/* ── Branch Manager Portal ──────────────────────────────── */}
+        {/* Dashboard (review/approve view) */}
         <Route
           path="/branch-manager"
           element={
@@ -136,6 +107,34 @@ export default function App() {
             </ProtectedRoute>
           }
         />
+        {/* Create New Progress Entry */}
+        <Route
+          path="/branch-manager/entry"
+          element={
+            <ProtectedRoute allowedRoles={["branch_manager"]}>
+              <ProgressEntryForm />
+            </ProtectedRoute>
+          }
+        />
+        {/* Edit Existing Progress Entry */}
+        <Route
+          path="/branch-manager/entry/:id"
+          element={
+            <ProtectedRoute allowedRoles={["branch_manager"]}>
+              <ProgressEntryForm />
+            </ProtectedRoute>
+          }
+        />
+        {/* My submission history */}
+        <Route
+          path="/branch-manager/history"
+          element={
+            <ProtectedRoute allowedRoles={["branch_manager"]}>
+              <SubmissionHistory />
+            </ProtectedRoute>
+          }
+        />
+        {/* Review a submitted entry */}
         <Route
           path="/branch-manager/review/:id"
           element={
@@ -144,6 +143,7 @@ export default function App() {
             </ProtectedRoute>
           }
         />
+        {/* Published records (branch manager view) */}
         <Route
           path="/branch-manager/published"
           element={
@@ -153,86 +153,88 @@ export default function App() {
           }
         />
 
+        {/* ── Hub Manager Portal ─────────────────────────────────── */}
         <Route
-          path="/management"
+          path="/hub-manager"
           element={
-            <ProtectedRoute allowedRoles={["senior_management"]}>
-              <SeniorManagementDashboard />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/management/records"
-          element={
-            <ProtectedRoute allowedRoles={["senior_management"]}>
-              <ManagementRecords />
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="/it"
-          element={
-            <ProtectedRoute allowedRoles={["it_engineer"]}>
-              <ITEngineerDashboard />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/it/users"
-          element={
-            <ProtectedRoute allowedRoles={["it_engineer"]}>
-              <UserManagement />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/it/system"
-          element={
-            <ProtectedRoute allowedRoles={["it_engineer"]}>
-              <SystemMaintenance />
-            </ProtectedRoute>
-          }
-        />
-
-        {/* Planning / Management Portal Routes */}
-        <Route
-          path="/planning"
-          element={
-            <ProtectedRoute allowedRoles={["planning", "senior_management", "trusted_admin"]}>
+            <ProtectedRoute allowedRoles={["hub_manager"]}>
               <PlanningDashboard />
             </ProtectedRoute>
           }
         />
         <Route
-          path="/planning/projects"
+          path="/hub-manager/projects"
           element={
-            <ProtectedRoute allowedRoles={["planning", "senior_management", "trusted_admin"]}>
+            <ProtectedRoute allowedRoles={["hub_manager"]}>
               <Projects />
             </ProtectedRoute>
           }
         />
         <Route
-          path="/planning/projects/:id"
+          path="/hub-manager/projects/:id"
           element={
-            <ProtectedRoute allowedRoles={["planning", "senior_management", "trusted_admin"]}>
+            <ProtectedRoute allowedRoles={["hub_manager"]}>
               <ProjectDetail />
             </ProtectedRoute>
           }
         />
         <Route
-          path="/planning/assets"
+          path="/hub-manager/assets"
           element={
-            <ProtectedRoute allowedRoles={["planning", "trusted_admin"]}>
+            <ProtectedRoute allowedRoles={["hub_manager"]}>
               <NetworkAssets />
             </ProtectedRoute>
           }
         />
         <Route
-          path="/planning/monitor"
+          path="/hub-manager/monitor"
           element={
-            <ProtectedRoute allowedRoles={["planning", "senior_management", "trusted_admin"]}>
+            <ProtectedRoute allowedRoles={["hub_manager"]}>
               <ProgressMonitor />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* ── Senior Manager Portal ─────────────────────────────── */}
+        <Route
+          path="/senior-manager"
+          element={
+            <ProtectedRoute allowedRoles={["senior_manager", "admin"]}>
+              <SeniorManagementDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/senior-manager/records"
+          element={
+            <ProtectedRoute allowedRoles={["senior_manager", "admin"]}>
+              <ManagementRecords />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* ── Admin Portal ───────────────────────────────────────── */}
+        <Route
+          path="/admin"
+          element={
+            <ProtectedRoute allowedRoles={["admin"]}>
+              <ITEngineerDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/users"
+          element={
+            <ProtectedRoute allowedRoles={["admin"]}>
+              <UserManagement />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/system"
+          element={
+            <ProtectedRoute allowedRoles={["admin"]}>
+              <SystemMaintenance />
             </ProtectedRoute>
           }
         />

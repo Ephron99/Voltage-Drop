@@ -1,10 +1,8 @@
 export type UserRole =
-  | "site_engineer"
   | "branch_manager"
-  | "planning"
-  | "senior_management"
-  | "it_engineer"
-  | "trusted_admin";
+  | "hub_manager"
+  | "senior_manager"
+  | "admin";
 
 export type VoltageLevel = "MV" | "LV";
 
@@ -21,10 +19,47 @@ export interface User {
   name: string;
   role: UserRole;
   branch?: string;
+  hubId?: string;
+  hubName?: string;
+  hubRegion?: string;
   avatar?: string;
   password?: string;
   createdAt: string;
   lastLoginAt?: string;
+}
+
+// Hub represents the second level of the Rwanda hierarchy:
+// Nation → Hub → Branch → Line/Feeder → Transformer
+export interface Hub {
+  id: string;
+  name: string;
+  region: string;
+  branchManagerCount?: number;
+  siteEngineerCount?: number;
+  branchCount?: number;
+  lineCount?: number;
+  transformerCount?: number;
+  locationCount?: number;
+  managers?: Array<{ id: string; name: string; email: string; branch?: string }>;
+  engineers?: Array<{ id: string; name: string; email: string; branch?: string }>;
+  locations?: Array<{ id: string; name: string; address: string; governorate: string }>;
+  branches?: Array<{
+    id: string;
+    name: string;
+    lengthKm: number;
+    conductorType?: string;
+    status: BranchStatus;
+    lineCount: number;
+    transformerCount: number;
+  }>;
+  stats?: {
+    totalEntries: number;
+    publishedCount: number;
+    submittedCount: number;
+    rejectedCount: number;
+    avgProgress: number;
+    transformersCommissioned: number;
+  };
 }
 
 export interface Location {
@@ -32,13 +67,14 @@ export interface Location {
   name: string;
   address: string;
   governorate: string;
+  hubId?: string;
 }
 
 export interface Line {
   id: string;
   name: string;
   voltageLevel: VoltageLevel;
-  locationId: string;
+  branchId: string;
 }
 
 export interface Transformer {
@@ -56,7 +92,7 @@ export interface ProgressEntry {
   lineId: string;
   voltageLevel: VoltageLevel;
   transformerId: string;
-  completedKm: number;
+  progressPct: number;
   transformersInstalled: number;
   transformersTerminated: number;
   transformersTested: number;
@@ -86,7 +122,7 @@ export interface ProgressFormData {
   lineId: string;
   voltageLevel: VoltageLevel;
   transformerId: string;
-  completedKm: number;
+  progressPct: number;
   transformersInstalled: number;
   transformersTerminated: number;
   transformersTested: number;
@@ -173,13 +209,13 @@ export interface Scope {
 export interface Branch {
   id: string;
   name: string;
-  lineId: string;
+  hubId: string;
   lengthKm: number;
   conductorType?: string;
   status: BranchStatus;
-  lineName?: string;
-  voltageLevel?: VoltageLevel;
-  locationName?: string;
+  hubName?: string;
+  lineCount?: number;
+  transformerCount?: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -301,7 +337,7 @@ export interface FundTransactionFormData {
 
 export interface BranchFormData {
   name: string;
-  lineId: string;
+  hubId: string;
   lengthKm: number;
   conductorType?: string;
   status: BranchStatus;
@@ -315,7 +351,7 @@ export interface MonitorData {
     plannedKm: number;
     plannedTransformers: number;
     budgetAllocated: number;
-    actualKm: number;
+    actualProgressPct: number;
     actualTransformers: number;
   }>;
   taskProgress: Array<{
@@ -385,12 +421,17 @@ export const fundTypeLabels: Record<FundTransactionType, string> = {
 };
 
 export const roleLabels: Record<UserRole, string> = {
-  site_engineer: "Site Engineer",
   branch_manager: "Branch Manager",
-  planning: "Planning Department",
-  senior_management: "Senior Management",
-  it_engineer: "IT Engineer",
-  trusted_admin: "Trusted Administrator",
+  hub_manager: "Hub Manager",
+  senior_manager: "Senior Manager",
+  admin: "Admin",
+};
+
+export const rolePortalLabels: Record<UserRole, string> = {
+  branch_manager: "Branch Manager Portal",
+  hub_manager: "Hub Manager Portal",
+  senior_manager: "Senior Management Portal",
+  admin: "Admin Portal",
 };
 
 export const statusLabels: Record<EntryStatus, string> = {

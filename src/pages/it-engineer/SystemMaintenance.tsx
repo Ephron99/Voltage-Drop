@@ -62,17 +62,31 @@ const systemResources = [
 ];
 
 const auditTrail = [
-  { time: "09:42:15", date: "Today", user: "Emmy ", role: "it_engineer", action: "User Created", target: "engineer3@site.com", severity: "info" },
+  { time: "09:42:15", date: "Today",     user: "Emmy ",        role: "admin",          action: "User Created",         target: "manager3@hub.com",      severity: "info" },
+  { time: "09:25:33", date: "Today",     user: "Ahmad Fathy",  role: "hub_manager",    action: "Project Updated",      target: "VDP-2026-01 (active)",  severity: "info" },
+  { time: "09:15:08", date: "Today",     user: "System",       role: "system",         action: "Automated Backup",     target: "Full DB + attachments", severity: "info" },
+  { time: "08:52:44", date: "Today",     user: "Emmy ",        role: "admin",          action: "Password Reset",       target: "manager2@branch.com",   severity: "warning" },
+  { time: "07:51:19", date: "Today",     user: "Theogene",     role: "branch_manager", action: "Entry Submitted",      target: "entry-012 (submitted)", severity: "info" },
+  { time: "07:30:00", date: "Today",     user: "System",       role: "system",         action: "Scheduled Maintenance",target: "Index rebuild completed",severity: "info" },
+  { time: "23:14:22", date: "Yesterday", user: "Security Bot", role: "system",         action: "Security Scan",        target: "0 vulnerabilities found",severity: "info" },
+  { time: "18:03:56", date: "Yesterday", user: "Theogene",     role: "branch_manager", action: "Published Entry",      target: "entry-008 (published)", severity: "info" },
+  { time: "16:45:11", date: "Yesterday", user: "Emmy ",        role: "admin",          action: "Role Updated",         target: "manager@branch.com",    severity: "warning" },
+  { time: "14:22:33", date: "Yesterday", user: "Ephron",       role: "branch_manager", action: "Submitted Entry",      target: "entry-001 (submitted)", severity: "info" },
+  { time: "11:08:19", date: "Yesterday", user: "System",       role: "system",         action: "Failed Login Attempt", target: "unknown user (IP blocked)",severity: "error" },
+  { time: "09:00:00", date: "Yesterday", user: "System",       role: "system",         action: "Daily Rollup",         target: "Metrics aggregated",    severity: "info" },
+  { time: "22:11:40", date: "2 days ago",user: "Emmy ",        role: "admin",          action: "User Deleted",         target: "old-user@site.com",     severity: "warning" },
+  { time: "18:44:02", date: "2 days ago",user: "System",       role: "system",         action: "DB Backup",            target: "Snapshot vol-drop-20260810",severity: "info" },
+  { time: "15:30:02", date: "2 days ago",user: "System",       role: "system",         action: "Backup Integrity Check",target: "All 14 snapshots valid",severity: "info" },
   { time: "09:15:08", date: "Today", user: "System", role: "system", action: "Automated Backup", target: "Full DB + attachments", severity: "info" },
-  { time: "08:52:44", date: "Today", user: "Emmy ", role: "it_engineer", action: "Password Reset", target: "engineer2@site.com", severity: "warning" },
+  { time: "08:52:44", date: "Today",     user: "Emmy ",  role: "admin",          action: "Password Reset",  target: "manager2@branch.com",  severity: "warning" },
   { time: "07:30:00", date: "Today", user: "System", role: "system", action: "Scheduled Maintenance", target: "Index rebuild completed", severity: "info" },
   { time: "23:14:22", date: "Yesterday", user: "Security Bot", role: "system", action: "Security Scan", target: "0 vulnerabilities found", severity: "info" },
   { time: "18:03:56", date: "Yesterday", user: "Theogene", role: "branch_manager", action: "Published Entry", target: "entry-008 (published)", severity: "info" },
-  { time: "16:45:11", date: "Yesterday", user: "Emmy ", role: "it_engineer", action: "Role Updated", target: "manager@branch.com", severity: "warning" },
-  { time: "14:22:33", date: "Yesterday", user: "Ephron", role: "site_engineer", action: "Submitted Entry", target: "entry-001 (submitted)", severity: "info" },
+  { time: "16:45:11", date: "Yesterday", user: "Emmy ",  role: "admin",          action: "Role Updated",    target: "manager@branch.com",   severity: "warning" },
+  { time: "14:22:33", date: "Yesterday", user: "Ephron", role: "branch_manager", action: "Submitted Entry", target: "entry-001 (submitted)", severity: "info" },
   { time: "11:08:19", date: "Yesterday", user: "System", role: "system", action: "Failed Login Attempt", target: "unknown user (IP blocked)", severity: "error" },
   { time: "09:00:00", date: "Yesterday", user: "System", role: "system", action: "Daily Rollup", target: "Metrics aggregated", severity: "info" },
-  { time: "22:11:40", date: "2 days ago", user: "Emmy ", role: "it_engineer", action: "User Deleted", target: "old-user@site.com", severity: "warning" },
+  { time: "22:11:40", date: "2 days ago", user: "Emmy ", role: "admin",          action: "User Deleted",    target: "old-user@site.com",    severity: "warning" },
   { time: "15:30:02", date: "2 days ago", user: "System", role: "system", action: "Backup Integrity Check", target: "All 14 snapshots valid", severity: "info" },
 ];
 
@@ -142,25 +156,13 @@ export default function SystemMaintenance() {
   return (
     <div className="min-h-screen bg-electric-grid">
       <Navbar
-        role="it_engineer"
+        role="admin"
         navItems={[
-          {
-            label: "Dashboard",
-            path: "/it",
-            icon: <LayoutDashboard className="w-4 h-4" />,
-          },
-          {
-            label: "User Management",
-            path: "/it/users",
-            icon: <Users className="w-4 h-4" />,
-          },
-          {
-            label: "System Maintenance",
-            path: "/it/system",
-            icon: <Settings className="w-4 h-4" />,
-          },
+          { label: "Dashboard",          path: "/admin",        icon: <LayoutDashboard className="w-4 h-4" /> },
+          { label: "User Management",    path: "/admin/users",  icon: <Users className="w-4 h-4" /> },
+          { label: "System Maintenance", path: "/admin/system", icon: <Settings className="w-4 h-4" /> },
         ]}
-        title="IT Engineer Portal"
+        title="Admin Portal"
       />
 
       <main className="container py-8 space-y-6">
@@ -660,7 +662,7 @@ export default function SystemMaintenance() {
                             className={`flex items-center justify-center w-8 h-8 rounded-lg shrink-0 border ${
                               evt.role === "system"
                                 ? "bg-violet-50 text-violet-700 border-violet-200"
-                                : evt.role === "it_engineer"
+                                : evt.role === "admin"
                                 ? "bg-slate-100 text-slate-700 border-slate-200"
                                 : "bg-brand-50 text-brand-700 border-brand-200"
                             }`}
