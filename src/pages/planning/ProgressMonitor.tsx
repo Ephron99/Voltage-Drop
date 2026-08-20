@@ -1,46 +1,72 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import {
-  LayoutDashboard,
-  FolderKanban,
-  Network,
-  TrendingUp,
-  Target,
-  Wallet,
-  ListChecks,
-  DollarSign,
-  AlertTriangle,
+  Activity,
+  BarChart3,
   CheckCircle2,
   Clock,
+  FolderKanban,
+  Inbox,
+  LayoutDashboard,
+  Network,
+  Send,
+  TrendingUp,
+  Zap,
 } from "lucide-react";
-import { useManagementStore } from "@/store/managementStore";
+import { Link } from "react-router-dom";
+import { useProgressStore } from "@/store/progressStore";
+import { useMasterDataStore } from "@/store/masterDataStore";
 import { Navbar } from "@/components/Navbar";
 import { StatCard } from "@/components/StatCard";
-import { scopeStatusLabels, taskStatusLabels, taskPriorityLabels } from "@/types";
+import { StatusBadge } from "@/components/StatusBadge";
+import type { EntryStatus } from "@/types";
 
 const navItems = [
   { label: "Dashboard", path: "/hub-manager", icon: <LayoutDashboard className="w-4 h-4" /> },
-  { label: "Projects", path: "/hub-manager/projects", icon: <FolderKanban className="w-4 h-4" /> },
+//   { label: "Projects", path: "/hub-manager/projects", icon: <FolderKanban className="w-4 h-4" /> },
   { label: "Network Assets", path: "/hub-manager/assets", icon: <Network className="w-4 h-4" /> },
   { label: "Progress Monitor", path: "/hub-manager/monitor", icon: <TrendingUp className="w-4 h-4" /> },
 ];
 
+const filters: Array<{ label: string; value: "all" | EntryStatus }> = [
+  { label: "All entries", value: "all" },
+  { label: "Awaiting review", value: "submitted" },
+  { label: "Approved", value: "approved" },
+  { label: "Published", value: "published" },
+  { label: "Rejected", value: "rejected" },
+];
+
 export default function ProgressMonitor() {
-  const { projects, fetchProjects, monitorData, fetchMonitorData } = useManagementStore();
-  const [selectedProject, setSelectedProject] = useState<string>("");
+  const { entries, fetchEntries, loading } = useProgressStore();
+  const { getLocationName, getLineName } = useMasterDataStore();
+  const [filter, setFilter] = useState<"all" | EntryStatus>("all");
 
   useEffect(() => {
-    fetchProjects();
-  }, [fetchProjects]);
+    fetchEntries();
+  }, [fetchEntries]);
 
-  useEffect(() => {
-    if (selectedProject) {
-      fetchMonitorData(selectedProject);
-    }
-  }, [selectedProject, fetchMonitorData]);
+  const stats = useMemo(() => {
+    const averageProgress = entries.length > 0
+      ? Math.round(entries.reduce((sum, entry) => sum + entry.progressPct, 0) / entries.length)
+      : 0;
 
-  const formatCurrency = (n: number) =>
-    new Intl.NumberFormat("en-US", { style: "currency", currency: "RWF", maximumFractionDigits: 0 }).format(n);
+    return {
+      total: entries.length,
+      submitted: entries.filter((entry) => entry.status === "submitted").length,
+      approved: entries.filter((entry) => ["approved", "published"].includes(entry.status)).length,
+      averageProgress,
+      installed: entries.reduce((sum, entry) => sum + entry.transformersInstalled, 0),
+      tested: entries.reduce((sum, entry) => sum + entry.transformersTested, 0),
+      commissioned: entries.reduce((sum, entry) => sum + entry.transformersCommissioned, 0),
+    };
+  }, [entries]);
+
+  const visibleEntries = useMemo(
+    () => [...entries]
+      .filter((entry) => filter === "all" || entry.status === filter)
+      .sort((a, b) => new Date(b.entryDate).getTime() - new Date(a.entryDate).getTime()),
+    [entries, filter]
+  );
 
   return (
     <div className="min-h-screen bg-electric-grid">
@@ -50,246 +76,63 @@ export default function ProgressMonitor() {
         <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
           <p className="text-[10px] font-semibold text-violet-700 uppercase tracking-wider">Progress Tracking</p>
           <h1 className="font-display text-2xl font-bold tracking-tight text-slate-900">Progress Monitor</h1>
-          <p className="text-slate-500 text-xs">Monitor progress against plans across all projects</p>
+          <p className="text-slate-500 text-xs">Review field submissions and track network construction progress</p>
         </motion.div>
 
-        <div>
-          <label className="input-label">Select Project</label>
-          <select
-            value={selectedProject}
-            onChange={(e) => setSelectedProject(e.target.value)}
-            className="input-field max-w-md"
-          >
-            <option value="">Choose a project to monitor...</option>
-            {projects.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.code} — {p.name}
-              </option>
-            ))}
-          </select>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <StatCard title="Progress Entries" value={stats.total} subtitle={`${stats.submitted} awaiting review`} icon={<BarChart3 className="w-5 h-5" />} iconBg="bg-violet-50" iconColor="text-violet-700" delay={0} />
+          <StatCard title="Average Progress" value={`${stats.averageProgress}%`} subtitle="Across all field entries" icon={<TrendingUp className="w-5 h-5" />} iconBg="bg-emerald-50" iconColor="text-emerald-700" delay={0.05} />
+          <StatCard title="Verified Entries" value={stats.approved} subtitle="Approved or published" icon={<CheckCircle2 className="w-5 h-5" />} iconBg="bg-blue-50" iconColor="text-blue-700" delay={0.1} />
+          <StatCard title="Commissioned" value={stats.commissioned} subtitle={`${stats.tested} transformers tested`} icon={<Zap className="w-5 h-5" />} iconBg="bg-amber-50" iconColor="text-amber-700" delay={0.15} />
         </div>
 
-        {!selectedProject ? (
-          <div className="card p-12 text-center text-sm text-slate-500">
-            <TrendingUp className="w-12 h-12 mx-auto mb-3 text-slate-300" />
-            Select a project above to view its progress monitoring dashboard.
-          </div>
-        ) : !monitorData ? (
-          <div className="card p-12 text-center text-sm text-slate-500">
-            <Clock className="w-8 h-8 mx-auto mb-2 text-slate-300 animate-pulse" />
-            Loading monitor data...
-          </div>
-        ) : (
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="space-y-4"
-          >
-            {/* Summary Stats */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-              <StatCard
-                title="Scopes Tracked"
-                value={monitorData.scopeProgress.length}
-                subtitle={`${monitorData.scopeProgress.filter((s) => s.status === "active").length} active`}
-                icon={<Target className="w-5 h-5" />}
-                iconBg="bg-violet-50"
-                iconColor="text-violet-700"
-                delay={0}
-              />
-              <StatCard
-                title="Budget Categories"
-                value={monitorData.budgetVsActual.length}
-                subtitle={`${formatCurrency(monitorData.budgetVsActual.reduce((s, b) => s + b.spent, 0))} total spent`}
-                icon={<Wallet className="w-5 h-5" />}
-                iconBg="bg-emerald-50"
-                iconColor="text-emerald-700"
-                delay={0.05}
-              />
-              <StatCard
-                title="Total Tasks"
-                value={monitorData.taskProgress.reduce((s, t) => s + t.count, 0)}
-                subtitle={`${monitorData.taskProgress.filter((t) => t.status === "completed").reduce((s, t) => s + t.count, 0)} completed`}
-                icon={<ListChecks className="w-5 h-5" />}
-                iconBg="bg-blue-50"
-                iconColor="text-blue-700"
-                delay={0.1}
-              />
-              <StatCard
-                title="Funds Available"
-                value={formatCurrency(
-                  monitorData.fundAvailability.totalAllocated -
-                  monitorData.fundAvailability.totalDisbursed -
-                  monitorData.fundAvailability.totalCommitted
-                )}
-                subtitle={`${formatCurrency(monitorData.fundAvailability.totalAllocated)} allocated`}
-                icon={<DollarSign className="w-5 h-5" />}
-                iconBg="bg-amber-50"
-                iconColor="text-amber-700"
-                delay={0.15}
-              />
-            </div>
-
-            {/* Scope Progress */}
-            <div className="card p-4 space-y-3">
-              <h2 className="font-display text-lg font-bold text-slate-900 flex items-center gap-1.5">
-                <Target className="w-4 h-4 text-violet-700" /> Scope Progress vs Plan
-              </h2>
-              {monitorData.scopeProgress.length === 0 ? (
-                <p className="text-xs text-slate-500 py-4 text-center">No scopes defined for this project.</p>
-              ) : (
-                <div className="space-y-2">
-                  {monitorData.scopeProgress.map((scope, i) => {
-                    const kmPct = Math.min(scope.actualProgressPct || 0, 100);
-                    const trPct = scope.plannedTransformers > 0 ? Math.min((scope.actualTransformers / scope.plannedTransformers) * 100, 100) : 0;
-                    return (
-                      <motion.div
-                        key={scope.id}
-                        initial={{ opacity: 0, x: -10 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: i * 0.05 }}
-                        className="rounded-xl border border-slate-200/60 p-3"
-                      >
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="text-sm font-bold text-slate-900">{scope.name}</span>
-                          <span className={`status-pill ${
-                            scope.status === "active" ? "bg-emerald-100 text-emerald-700" :
-                            scope.status === "completed" ? "bg-blue-100 text-blue-700" :
-                            "bg-slate-100 text-slate-700"
-                          }`}>
-                            {scopeStatusLabels[scope.status]}
-                          </span>
-                        </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                          <div>
-                            <div className="flex justify-between text-[10px] text-slate-600 mb-0.5">
-                              <span>Cable Progress</span>
-                              <span className="font-mono font-bold">{scope.actualProgressPct.toFixed(1)}%</span>
-                            </div>
-                            <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
-                              <div className="h-full bg-gradient-to-r from-violet-500 to-violet-700 rounded-full transition-all" style={{ width: `${kmPct}%` }} />
-                            </div>
-                          </div>
-                          <div>
-                            <div className="flex justify-between text-[10px] text-slate-600 mb-0.5">
-                              <span>Transformers Commissioned</span>
-                              <span className="font-mono font-bold">{scope.actualTransformers} / {scope.plannedTransformers} ({Math.round(trPct)}%)</span>
-                            </div>
-                            <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
-                              <div className="h-full bg-gradient-to-r from-amber-400 to-amber-600 rounded-full transition-all" style={{ width: `${trPct}%` }} />
-                            </div>
-                          </div>
-                        </div>
-                      </motion.div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-
-            {/* Budget vs Actual & Task Progress */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <div className="card p-4 space-y-3">
-                <h2 className="font-display text-base font-bold text-slate-900 flex items-center gap-1.5">
-                  <Wallet className="w-4 h-4 text-emerald-700" /> Budget vs Actual
-                </h2>
-                {monitorData.budgetVsActual.length === 0 ? (
-                  <p className="text-xs text-slate-500 py-4 text-center">No budget data.</p>
-                ) : (
-                  <div className="space-y-2">
-                    {monitorData.budgetVsActual.map((item) => {
-                      const pct = item.planned > 0 ? Math.min((item.spent / item.planned) * 100, 100) : 0;
-                      return (
-                        <div key={item.category} className="rounded-lg border border-slate-200/60 p-2.5">
-                          <div className="flex justify-between items-center mb-1">
-                            <span className="text-xs font-bold text-slate-900">{item.category}</span>
-                            <span className="font-mono text-[10px] font-bold text-slate-700">
-                              {formatCurrency(item.spent)} / {formatCurrency(item.planned)}
-                            </span>
-                          </div>
-                          <div className="h-1.5 rounded-full bg-slate-100 overflow-hidden">
-                            <div className={`h-full rounded-full ${
-                              pct < 70 ? "bg-gradient-to-r from-emerald-400 to-emerald-600" :
-                              pct < 90 ? "bg-gradient-to-r from-amber-400 to-amber-600" :
-                              "bg-gradient-to-r from-rose-500 to-rose-700"
-                            }`} style={{ width: `${pct}%` }} />
-                          </div>
-                          {item.committed > 0 && (
-                            <p className="text-[10px] text-amber-600 mt-0.5">+ {formatCurrency(item.committed)} committed</p>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="lg:col-span-2 card p-4 space-y-3">
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <div>
+                <h2 className="font-display text-lg font-bold text-slate-900 tracking-tight flex items-center gap-1.5"><Activity className="w-4 h-4 text-violet-700" /> Field Progress Entries</h2>
+                <p className="text-[10px] text-slate-500 mt-0.5">Latest updates from site engineers</p>
               </div>
+              <select value={filter} onChange={(event) => setFilter(event.target.value as "all" | EntryStatus)} className="input-field w-auto text-xs py-2" aria-label="Filter progress entries">
+                {filters.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
+              </select>
+            </div>
 
-              <div className="card p-4 space-y-3">
-                <h2 className="font-display text-base font-bold text-slate-900 flex items-center gap-1.5">
-                  <ListChecks className="w-4 h-4 text-blue-700" /> Task Progress
-                </h2>
-                {monitorData.taskProgress.length === 0 ? (
-                  <p className="text-xs text-slate-500 py-4 text-center">No task data.</p>
-                ) : (
-                  <div className="grid grid-cols-2 gap-2">
-                    {monitorData.taskProgress.map((tp) => (
-                      <div key={`${tp.status}-${tp.priority}`} className="rounded-lg bg-slate-50 p-2.5">
-                        <div className="flex items-center gap-1 mb-0.5">
-                          {tp.status === "completed" ? <CheckCircle2 className="w-3 h-3 text-emerald-600" /> : <Clock className="w-3 h-3 text-slate-400" />}
-                          <p className="text-[9px] font-semibold uppercase text-slate-500">
-                            {taskStatusLabels[tp.status]}
-                          </p>
+            {loading && entries.length === 0 ? (
+              <div className="py-10 text-center text-sm text-slate-500"><Clock className="w-7 h-7 mx-auto mb-2 text-slate-300 animate-pulse" /> Loading progress entries...</div>
+            ) : visibleEntries.length === 0 ? (
+              <div className="py-10 text-center text-sm text-slate-500"><Inbox className="w-8 h-8 mx-auto mb-2 text-slate-300" /> No entries match this filter.</div>
+            ) : (
+              <div className="space-y-2">
+                {visibleEntries.map((entry, index) => (
+                  <motion.div key={entry.id} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: index * 0.04 }}>
+                    <Link to={`/hub-manager/review/${entry.id}`} className="block rounded-xl border border-slate-200/60 p-3 hover:border-violet-200/80 hover:bg-violet-50/30 transition-colors">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2 mb-1"><span className="font-mono text-[10px] font-bold text-violet-700">#{entry.id.slice(-8).toUpperCase()}</span><StatusBadge status={entry.status} /></div>
+                          <p className="text-sm font-bold text-slate-900 truncate">{entry.siteEngineerName || "Unknown Site Engineer"}</p>
+                          <p className="text-[10px] text-slate-500 mt-0.5 truncate">{getLocationName(entry.locationId)} · {getLineName(entry.lineId)} · {new Date(entry.entryDate).toLocaleDateString("en-GB")}</p>
                         </div>
-                        <p className="text-[9px] text-slate-400">{taskPriorityLabels[tp.priority]}</p>
-                        <p className="font-display text-lg font-bold text-slate-900">{tp.count}</p>
-                        <p className="text-[9px] text-slate-500">{Math.round(tp.avgProgress)}% avg progress</p>
+                        <div className="text-right shrink-0"><p className="font-display text-lg font-bold text-violet-700">{entry.progressPct.toFixed(1)}%</p><p className="text-[9px] text-slate-500">{entry.transformersCommissioned} commissioned</p></div>
                       </div>
-                    ))}
-                  </div>
-                )}
+                      <div className="h-1.5 rounded-full bg-slate-100 overflow-hidden mt-3"><div className="h-full rounded-full bg-gradient-to-r from-violet-500 to-emerald-500" style={{ width: `${Math.min(entry.progressPct, 100)}%` }} /></div>
+                    </Link>
+                  </motion.div>
+                ))}
               </div>
-            </div>
-
-            {/* Fund Availability */}
-            <div className="card p-4 space-y-3">
-              <h2 className="font-display text-base font-bold text-slate-900 flex items-center gap-1.5">
-                <DollarSign className="w-4 h-4 text-amber-700" /> Fund Availability
-              </h2>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                <div className="rounded-lg bg-emerald-50 p-2.5">
-                  <p className="text-[9px] font-semibold uppercase text-emerald-700">Allocated</p>
-                  <p className="font-display text-sm font-bold text-emerald-800">{formatCurrency(monitorData.fundAvailability.totalAllocated)}</p>
-                </div>
-                <div className="rounded-lg bg-rose-50 p-2.5">
-                  <p className="text-[9px] font-semibold uppercase text-rose-700">Disbursed</p>
-                  <p className="font-display text-sm font-bold text-rose-800">{formatCurrency(monitorData.fundAvailability.totalDisbursed)}</p>
-                </div>
-                <div className="rounded-lg bg-amber-50 p-2.5">
-                  <p className="text-[9px] font-semibold uppercase text-amber-700">Committed</p>
-                  <p className="font-display text-sm font-bold text-amber-800">{formatCurrency(monitorData.fundAvailability.totalCommitted)}</p>
-                </div>
-                <div className="rounded-lg bg-blue-50 p-2.5">
-                  <p className="text-[9px] font-semibold uppercase text-blue-700">Refunded</p>
-                  <p className="font-display text-sm font-bold text-blue-800">{formatCurrency(monitorData.fundAvailability.totalRefunded)}</p>
-                </div>
-              </div>
-              <div className="rounded-xl bg-gradient-to-br from-violet-50 to-emerald-50 border border-violet-200/60 p-3">
-                <div className="flex items-center gap-2">
-                  <AlertTriangle className="w-5 h-5 text-violet-600 shrink-0" />
-                  <div>
-                    <p className="text-xs font-semibold text-violet-900">Net Available Funds</p>
-                    <p className="font-display text-xl font-bold text-violet-900">
-                      {formatCurrency(
-                        monitorData.fundAvailability.totalAllocated -
-                        monitorData.fundAvailability.totalDisbursed -
-                        monitorData.fundAvailability.totalCommitted
-                      )}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
+            )}
           </motion.div>
-        )}
+
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="card p-4 space-y-3">
+            <h2 className="font-display text-lg font-bold text-slate-900 tracking-tight">Transformer Pipeline</h2>
+            <div className="space-y-2">
+              {[["Installed", stats.installed, "bg-slate-100 text-slate-700"], ["Tested", stats.tested, "bg-amber-100 text-amber-700"], ["Commissioned", stats.commissioned, "bg-emerald-100 text-emerald-700"]].map(([label, value, color]) => (
+                <div key={label} className={`rounded-xl p-3 ${color}`}><p className="text-[10px] font-semibold uppercase tracking-wider">{label}</p><p className="font-display text-2xl font-bold">{value}</p></div>
+              ))}
+            </div>
+            <Link to="/hub-manager" className="flex items-center justify-center gap-2 rounded-xl border border-violet-200 p-3 text-xs font-semibold text-violet-700 hover:bg-violet-50 transition-colors"><Send className="w-4 h-4" /> View dashboard summary</Link>
+          </motion.div>
+        </div>
       </main>
     </div>
   );

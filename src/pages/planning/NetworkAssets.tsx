@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   LayoutDashboard,
-  FolderKanban,
   Network,
   TrendingUp,
   Plus,
@@ -18,14 +17,15 @@ import {
 import { useMasterDataStore } from "@/store/masterDataStore";
 import { useManagementStore } from "@/store/managementStore";
 import { useHubStore } from "@/store/hubStore";
-import { masterApi, hubsApi } from "@/services/api";
+import { useAuthStore } from "@/store/authStore";
+import { masterApi } from "@/services/api";
 import { Navbar } from "@/components/Navbar";
 import { branchStatusLabels } from "@/types";
 import type { Location, Line, Transformer, Branch, BranchStatus, VoltageLevel, Hub } from "@/types";
 
 const navItems = [
   { label: "Dashboard", path: "/hub-manager", icon: <LayoutDashboard className="w-4 h-4" /> },
-  { label: "Projects", path: "/hub-manager/projects", icon: <FolderKanban className="w-4 h-4" /> },
+  // { label: "Projects", path: "/hub-manager/projects", icon: <FolderKanban className="w-4 h-4" /> },
   { label: "Network Assets", path: "/hub-manager/assets", icon: <Network className="w-4 h-4" /> },
   { label: "Progress Monitor", path: "/hub-manager/monitor", icon: <TrendingUp className="w-4 h-4" /> },
 ];
@@ -33,6 +33,7 @@ const navItems = [
 type AssetTab = "hubs" | "branches" | "lines" | "transformers" | "locations";
 
 export default function NetworkAssets() {
+  const { user } = useAuthStore();
   const {
     locations,
     lines,
@@ -51,15 +52,22 @@ export default function NetworkAssets() {
   } = useMasterDataStore();
   const { branches, fetchBranches, createBranch, updateBranch, deleteBranch } = useManagementStore();
   const { hubs, fetchHubs } = useHubStore();
+  const scopedToHub = user?.role === "hub_manager";
+  const hubId = scopedToHub ? user.hubId : undefined;
+  const visibleHubs = scopedToHub ? (hubId ? hubs.filter((hub) => hub.id === hubId) : []) : hubs;
+  const visibleBranches = scopedToHub ? (hubId ? branches.filter((branch) => branch.hubId === hubId) : []) : branches;
+  const visibleBranchIds = new Set(visibleBranches.map((branch) => branch.id));
+  const visibleLines = scopedToHub ? lines.filter((line) => visibleBranchIds.has(line.branchId)) : lines;
+  const visibleLineIds = new Set(visibleLines.map((line) => line.id));
+  const visibleTransformers = scopedToHub ? transformers.filter((transformer) => visibleLineIds.has(transformer.lineId)) : transformers;
+  const visibleLocations = scopedToHub ? (hubId ? locations.filter((location) => location.hubId === hubId) : []) : locations;
   const [activeTab, setActiveTab] = useState<AssetTab>("hubs");
-  const [showForm, setShowForm] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!initialized) fetchAll();
-    fetchBranches();
+    fetchBranches(hubId);
     fetchHubs();
-  }, [fetchAll, fetchBranches, fetchHubs, initialized]);
+  }, [fetchAll, fetchBranches, fetchHubs, initialized, hubId]);
 
   return (
     <div className="min-h-screen bg-electric-grid">
@@ -69,16 +77,24 @@ export default function NetworkAssets() {
         <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
           <p className="text-[10px] font-semibold text-violet-700 uppercase tracking-wider">Network Configuration</p>
           <h1 className="font-display text-2xl font-bold tracking-tight text-slate-900">Network Assets</h1>
-          <p className="text-slate-500 text-xs">Hierarchy: Hub → Branch → Line → Transformer</p>
+          <p className="text-slate-500 text-xs">
+            {hubId ? `Managing assets within ${visibleHubs[0]?.name || "your assigned hub"}` : "Hierarchy: Hub → Branch → Line → Transformer"}
+          </p>
         </motion.div>
+
+        {user?.role === "hub_manager" && !hubId && (
+          <div className="card p-4 text-sm text-amber-800 bg-amber-50 border-amber-200">
+            Your account is not assigned to a hub. Contact an administrator before managing network assets.
+          </div>
+        )}
 
         <div className="flex items-center gap-1 border-b border-slate-200 overflow-x-auto">
           {([
-            { key: "hubs", label: "Hubs", icon: <Building2 className="w-3.5 h-3.5" />, count: hubs.length },
-            { key: "branches", label: "Branches", icon: <GitBranch className="w-3.5 h-3.5" />, count: branches.length },
-            { key: "lines", label: "Lines", icon: <Cable className="w-3.5 h-3.5" />, count: lines.length },
-            { key: "transformers", label: "Transformers", icon: <Zap className="w-3.5 h-3.5" />, count: transformers.length },
-            { key: "locations", label: "Locations", icon: <MapPin className="w-3.5 h-3.5" />, count: locations.length },
+            { key: "hubs", label: "Hubs", icon: <Building2 className="w-3.5 h-3.5" />, count: visibleHubs.length },
+            { key: "branches", label: "Branches", icon: <GitBranch className="w-3.5 h-3.5" />, count: visibleBranches.length },
+            { key: "lines", label: "Lines", icon: <Cable className="w-3.5 h-3.5" />, count: visibleLines.length },
+            { key: "transformers", label: "Transformers", icon: <Zap className="w-3.5 h-3.5" />, count: visibleTransformers.length },
+            { key: "locations", label: "Locations", icon: <MapPin className="w-3.5 h-3.5" />, count: visibleLocations.length },
           ] as { key: AssetTab; label: string; icon: React.ReactNode; count: number }[]).map((tab) => (
             <button
               key={tab.key}
@@ -96,15 +112,15 @@ export default function NetworkAssets() {
 
         <AnimatePresence mode="wait">
           <motion.div key={activeTab} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.2 }}>
-            {activeTab === "hubs" && <HubsTab hubs={hubs} branches={branches} lines={lines} transformers={transformers} />}
+            {activeTab === "hubs" && <HubsTab hubs={visibleHubs} branches={visibleBranches} lines={visibleLines} transformers={visibleTransformers} />}
             {activeTab === "branches" && (
-              <BranchesTab branches={branches} hubs={hubs} createBranch={createBranch} updateBranch={updateBranch} deleteBranch={deleteBranch} />
+              <BranchesTab branches={visibleBranches} hubs={visibleHubs} createBranch={createBranch} updateBranch={updateBranch} deleteBranch={deleteBranch} hubId={hubId} />
             )}
             {activeTab === "lines" && (
               <LinesTab
-                lines={lines}
-                branches={branches}
-                hubs={hubs}
+                lines={visibleLines}
+                branches={visibleBranches}
+                hubs={visibleHubs}
                 addLine={addLine}
                 updateLine={updateLine}
                 removeLine={removeLine}
@@ -112,10 +128,10 @@ export default function NetworkAssets() {
             )}
             {activeTab === "transformers" && (
               <TransformersTab
-                transformers={transformers}
-                lines={lines}
-                branches={branches}
-                hubs={hubs}
+                transformers={visibleTransformers}
+                lines={visibleLines}
+                branches={visibleBranches}
+                hubs={visibleHubs}
                 addTransformer={addTransformer}
                 updateTransformer={updateTransformer}
                 removeTransformer={removeTransformer}
@@ -123,11 +139,12 @@ export default function NetworkAssets() {
             )}
             {activeTab === "locations" && (
               <LocationsTab
-                locations={locations}
-                hubs={hubs}
+                locations={visibleLocations}
+                hubs={visibleHubs}
                 addLocation={addLocation}
                 updateLocation={updateLocation}
                 removeLocation={removeLocation}
+                hubId={hubId}
               />
             )}
           </motion.div>
@@ -194,23 +211,25 @@ function LocationsTab({
   addLocation,
   updateLocation,
   removeLocation,
+  hubId,
 }: {
   locations: Location[];
   hubs: Hub[];
   addLocation: (loc: Location) => void;
   updateLocation: (id: string, data: Partial<Location>) => void;
   removeLocation: (id: string) => void;
+  hubId?: string;
 }) {
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [form, setForm] = useState({ name: "", address: "", governorate: "", hubId: "" });
+  const [form, setForm] = useState({ name: "", address: "", governorate: "", hubId: hubId || "" });
 
   const handleOpen = (loc?: Location) => {
     if (loc) {
       setForm({ name: loc.name, address: loc.address, governorate: loc.governorate, hubId: loc.hubId || "" });
       setEditingId(loc.id);
     } else {
-      setForm({ name: "", address: "", governorate: "", hubId: "" });
+      setForm({ name: "", address: "", governorate: "", hubId: hubId || "" });
       setEditingId(null);
     }
     setShowForm(true);
@@ -278,9 +297,9 @@ function LocationsTab({
               <div><label className="input-label">Name *</label><input type="text" required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="input-field" /></div>
               <div><label className="input-label">Address *</label><input type="text" required value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} className="input-field" /></div>
               <div><label className="input-label">Governorate *</label><input type="text" required value={form.governorate} onChange={(e) => setForm({ ...form, governorate: e.target.value })} className="input-field" /></div>
-              <div><label className="input-label">Hub (Optional)</label>
-                <select value={form.hubId} onChange={(e) => setForm({ ...form, hubId: e.target.value })} className="input-field">
-                  <option value="">Not linked to a hub</option>
+              <div><label className="input-label">Hub</label>
+                <select required value={form.hubId} onChange={(e) => setForm({ ...form, hubId: e.target.value })} className="input-field" disabled={Boolean(hubId)}>
+                  {!hubId && <option value="">Not linked to a hub</option>}
                   {hubs.map((h) => <option key={h.id} value={h.id}>{h.name} ({h.region})</option>)}
                 </select>
               </div>
@@ -424,22 +443,23 @@ function LinesTab({
   );
 }
 
-function BranchesTab({ branches, hubs, createBranch, updateBranch, deleteBranch }: {
+function BranchesTab({ branches, hubs, createBranch, updateBranch, deleteBranch, hubId }: {
   branches: Branch[]; hubs: Hub[];
   createBranch: (data: import("@/types").BranchFormData) => Promise<Branch | null>;
   updateBranch: (id: string, data: Partial<import("@/types").BranchFormData>) => Promise<boolean>;
   deleteBranch: (id: string) => Promise<boolean>;
+  hubId?: string;
 }) {
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [form, setForm] = useState({ name: "", hubId: "", lengthKm: 0, conductorType: "", status: "planned" as BranchStatus });
+  const [form, setForm] = useState({ name: "", hubId: hubId || "", lengthKm: 0, conductorType: "", status: "planned" as BranchStatus });
 
   const handleOpen = (branch?: Branch) => {
     if (branch) {
       setForm({ name: branch.name, hubId: branch.hubId, lengthKm: branch.lengthKm, conductorType: branch.conductorType || "", status: branch.status });
       setEditingId(branch.id);
     } else {
-      setForm({ name: "", hubId: "", lengthKm: 0, conductorType: "", status: "planned" });
+      setForm({ name: "", hubId: hubId || "", lengthKm: 0, conductorType: "", status: "planned" });
       setEditingId(null);
     }
     setShowForm(true);
@@ -506,7 +526,7 @@ function BranchesTab({ branches, hubs, createBranch, updateBranch, deleteBranch 
             <form onSubmit={handleSubmit} className="space-y-3">
               <div><label className="input-label">Name *</label><input type="text" required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="input-field" /></div>
               <div><label className="input-label">Hub *</label>
-                <select required value={form.hubId} onChange={(e) => setForm({ ...form, hubId: e.target.value })} className="input-field">
+                <select required value={form.hubId} onChange={(e) => setForm({ ...form, hubId: e.target.value })} className="input-field" disabled={Boolean(hubId)}>
                   <option value="">Select hub...</option>
                   {hubs.map((h) => <option key={h.id} value={h.id}>{h.name} ({h.region})</option>)}
                 </select>

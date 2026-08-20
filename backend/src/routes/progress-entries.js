@@ -148,7 +148,10 @@ router.get('/:id', async (req, res, next) => {
         .status(403)
         .json({ error: 'Access denied. You can only view your own entries.' });
     }
-    if (role === 'hub_manager' && userHubId) {
+    if (role === 'hub_manager') {
+      if (!userHubId) {
+        return res.status(403).json({ error: 'Access denied. Hub manager is not assigned to a hub.' });
+      }
       // Hub Manager can only view entries from engineers in their hub
       const [engineerRows] = await pool.query(
         'SELECT hub_id FROM users WHERE id = ? LIMIT 1',
@@ -160,6 +163,9 @@ router.get('/:id', async (req, res, next) => {
           .status(403)
           .json({ error: 'Access denied. You can only view entries from your hub.' });
       }
+    }
+    if (role === 'senior_manager') {
+      // senior manager can review all hub submissions
     }
 
     return res.json({ success: true, data: entry });
@@ -304,18 +310,30 @@ router.post('/:id/submit', requireRoles('branch_manager', 'admin'), async (req, 
 // POST /progress/:id/approve - approve entry
 router.post(
   '/:id/approve',
-  requireRoles('hub_manager', 'admin'),
+  requireRoles('hub_manager', 'senior_manager', 'admin'),
   async (req, res, next) => {
     try {
       const { id } = req.params;
-      const { id: userId } = req.user;
+      const { id: userId, role, hubId: userHubId } = req.user;
 
       const [rows] = await pool.query(
-        'SELECT id, status FROM progress_entries WHERE id = ? LIMIT 1',
+        `SELECT pe.id, pe.status, se.hub_id AS engineer_hub_id
+         FROM progress_entries pe
+         LEFT JOIN users se ON pe.site_engineer_id = se.id
+         WHERE pe.id = ? LIMIT 1`,
         [id]
       );
       if (rows.length === 0) {
         return res.status(404).json({ error: 'Progress entry not found' });
+      }
+
+      if (role === 'hub_manager') {
+        if (!userHubId) {
+          return res.status(403).json({ error: 'Access denied. Hub manager is not assigned to a hub.' });
+        }
+        if (rows[0].engineer_hub_id !== userHubId) {
+          return res.status(403).json({ error: 'Access denied. You can only approve entries from your hub.' });
+        }
       }
 
       if (rows[0].status !== 'submitted') {
@@ -340,20 +358,32 @@ router.post(
 // POST /progress/:id/reject - reject entry
 router.post(
   '/:id/reject',
-  requireRoles('hub_manager', 'admin'),
+  requireRoles('hub_manager', 'senior_manager', 'admin'),
   validate(rejectSchema),
   async (req, res, next) => {
     try {
       const { id } = req.params;
-      const { id: userId } = req.user;
+      const { id: userId, role, hubId: userHubId } = req.user;
       const { comments } = req.validated;
 
       const [rows] = await pool.query(
-        'SELECT id, status FROM progress_entries WHERE id = ? LIMIT 1',
+        `SELECT pe.id, pe.status, se.hub_id AS engineer_hub_id
+         FROM progress_entries pe
+         LEFT JOIN users se ON pe.site_engineer_id = se.id
+         WHERE pe.id = ? LIMIT 1`,
         [id]
       );
       if (rows.length === 0) {
         return res.status(404).json({ error: 'Progress entry not found' });
+      }
+
+      if (role === 'hub_manager') {
+        if (!userHubId) {
+          return res.status(403).json({ error: 'Access denied. Hub manager is not assigned to a hub.' });
+        }
+        if (rows[0].engineer_hub_id !== userHubId) {
+          return res.status(403).json({ error: 'Access denied. You can only reject entries from your hub.' });
+        }
       }
 
       if (rows[0].status !== 'submitted') {
@@ -378,14 +408,17 @@ router.post(
 // POST /progress/:id/publish - publish entry
 router.post(
   '/:id/publish',
-  requireRoles('hub_manager', 'admin'),
+  requireRoles('hub_manager', 'senior_manager', 'admin'),
   async (req, res, next) => {
     try {
       const { id } = req.params;
-      const { id: userId } = req.user;
+      const { id: userId, role, hubId: userHubId } = req.user;
 
       const [rows] = await pool.query(
-        'SELECT id, status, branch_manager_id FROM progress_entries WHERE id = ? LIMIT 1',
+        `SELECT pe.id, pe.status, pe.branch_manager_id, se.hub_id AS engineer_hub_id
+         FROM progress_entries pe
+         LEFT JOIN users se ON pe.site_engineer_id = se.id
+         WHERE pe.id = ? LIMIT 1`,
         [id]
       );
       if (rows.length === 0) {
@@ -393,6 +426,14 @@ router.post(
       }
 
       const entry = rows[0];
+      if (role === 'hub_manager') {
+        if (!userHubId) {
+          return res.status(403).json({ error: 'Access denied. Hub manager is not assigned to a hub.' });
+        }
+        if (entry.engineer_hub_id !== userHubId) {
+          return res.status(403).json({ error: 'Access denied. You can only publish entries from your hub.' });
+        }
+      }
       const publishableStatuses = ['submitted', 'approved'];
       if (!publishableStatuses.includes(entry.status)) {
         return res.status(400).json({

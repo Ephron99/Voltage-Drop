@@ -7,7 +7,6 @@ import {
   CalendarDays,
   Zap,
   TrendingUp,
-  TrendingDown,
   Gauge,
   CheckCircle2,
   AlertTriangle,
@@ -31,6 +30,18 @@ import { useHubStore } from "@/store/hubStore";
 import { Navbar } from "@/components/Navbar";
 import { StatCard } from "@/components/StatCard";
 import { StatusBadge } from "@/components/StatusBadge";
+import {
+  PieChart,
+  Pie,
+  Cell,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+  Legend,
+} from "recharts";
 
 const navItems = [
   {
@@ -46,9 +57,7 @@ const navItems = [
 ];
 
 const TOTAL_BUDGET_ESTIMATE = 500000000;
-const TOTAL_PLANNED_KM = 850;
 const TOTAL_PLANNED_TRANSFORMERS = 320;
-const COST_PER_KM_ESTIMATE = 350000;
 const COST_PER_TRANSFORMER_ESTIMATE = 800000;
 
 type PeriodFilter = "7d" | "30d" | "90d" | "all";
@@ -61,6 +70,7 @@ export default function SeniorManagementDashboard() {
   const { fetchAll, initialized: masterInitialized } = useMasterDataStore();
   const { fetchHubs, hubs, initialized: hubsInitialized } = useHubStore();
   const [period, setPeriod] = useState<PeriodFilter>("30d");
+  const [selectedHubId, setSelectedHubId] = useState("");
 
   useEffect(() => {
     fetchEntries();
@@ -73,6 +83,12 @@ export default function SeniorManagementDashboard() {
   useEffect(() => {
     if (!hubsInitialized) fetchHubs();
   }, [fetchHubs, hubsInitialized]);
+
+  useEffect(() => {
+    if (!selectedHubId && hubs.length > 0) {
+      setSelectedHubId(hubs[0].id);
+    }
+  }, [hubs, selectedHubId]);
 
   const periodFiltered = useMemo(() => {
     if (period === "all") return rawEntries;
@@ -141,6 +157,44 @@ export default function SeniorManagementDashboard() {
     };
   }, [rawEntries]);
 
+  // Pie chart: record status breakdown
+const statusPieData = useMemo(() => {
+  const counts = {
+    Published: rawEntries.filter((e) => e.status === "published").length,
+    Submitted: rawEntries.filter((e) => e.status === "submitted").length,
+    Rejected: rawEntries.filter((e) => e.status === "rejected").length,
+    Draft: rawEntries.filter((e) => e.status === "draft").length,
+  };
+  return Object.entries(counts)
+    .filter(([, value]) => value > 0)
+    .map(([name, value]) => ({ name, value }));
+}, [rawEntries]);
+
+const STATUS_COLORS: Record<string, string> = {
+  Published: "#10b981", // emerald-500
+  Submitted: "#f59e0b", // amber-500
+  Rejected: "#f43f5e", // rose-500
+  Draft: "#94a3b8", // slate-400
+};
+
+// Histogram: distribution of progress % across published entries, bucketed
+const progressHistogram = useMemo(() => {
+  const buckets = [
+    { label: "0-20%", min: 0, max: 20, count: 0 },
+    { label: "20-40%", min: 20, max: 40, count: 0 },
+    { label: "40-60%", min: 40, max: 60, count: 0 },
+    { label: "60-80%", min: 60, max: 80, count: 0 },
+    { label: "80-100%", min: 80, max: 100.01, count: 0 },
+  ];
+  for (const e of rawEntries.filter((x) => x.status === "published")) {
+    const bucket = buckets.find(
+      (b) => e.progressPct >= b.min && e.progressPct < b.max
+    );
+    if (bucket) bucket.count += 1;
+  }
+  return buckets;
+}, [rawEntries]);
+
   const recentPublished = useMemo(
     () =>
       [...rawEntries]
@@ -172,6 +226,38 @@ export default function SeniorManagementDashboard() {
       })
       .sort((a, b) => b.pct - a.pct);
   }, [rawEntries, locations]);
+
+  const selectedHub = hubs.find((hub) => hub.id === selectedHubId);
+  const selectedHubProgress = useMemo(() => {
+    const hubLocationIds = new Set(
+      locations.filter((location) => location.hubId === selectedHubId).map((location) => location.id)
+    );
+    const published = rawEntries.filter(
+      (entry) => entry.status === "published" && hubLocationIds.has(entry.locationId)
+    );
+    const averageProgress = published.length > 0
+      ? published.reduce((sum, entry) => sum + entry.progressPct, 0) / published.length
+      : 0;
+
+    return {
+      entries: published.length,
+      averageProgress,
+      transformersCommissioned: published.reduce((sum, entry) => sum + entry.transformersCommissioned, 0),
+      locations: locations
+        .filter((location) => hubLocationIds.has(location.id))
+        .map((location) => {
+          const locationEntries = published.filter((entry) => entry.locationId === location.id);
+          return {
+            ...location,
+            entries: locationEntries.length,
+            progress: locationEntries.length > 0
+              ? locationEntries.reduce((sum, entry) => sum + entry.progressPct, 0) / locationEntries.length
+              : 0,
+          };
+        })
+        .sort((a, b) => b.progress - a.progress),
+    };
+  }, [locations, rawEntries, selectedHubId]);
 
   const pipeline = useMemo(() => {
     const phases = [
@@ -314,14 +400,14 @@ export default function SeniorManagementDashboard() {
           />
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-1 gap-1">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
-            className="lg:col-span-2 card p-4 space-y-4"
+            // className="lg:col-span-2 card p-4 space-y-4"
           >
-            <div className="flex items-center justify-between">
+            {/* <div className="flex items-center justify-between">
               <div>
                 <h2 className="font-display text-lg font-bold text-slate-900 tracking-tight">
                   Project Progress at a Glance
@@ -423,9 +509,9 @@ export default function SeniorManagementDashboard() {
                   />
                 </div>
               </div>
-            </div>
+            </div> */}
 
-            <div className="pt-2">
+            {/* <div className="pt-2">
               <h3 className="text-xs font-semibold text-slate-700 mb-2.5 flex items-center gap-1.5">
                 <Award className="w-3.5 h-3.5 text-amber-600" />
                 Transformer Pipeline Funnel
@@ -452,7 +538,7 @@ export default function SeniorManagementDashboard() {
                   </div>
                 ))}
               </div>
-            </div>
+            </div> */}
           </motion.div>
 
           <motion.div
@@ -762,6 +848,93 @@ export default function SeniorManagementDashboard() {
             </div>
           </motion.div>
         </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+  {/* Pie chart: status distribution */}
+  <motion.div
+    initial={{ opacity: 0, y: 20 }}
+    animate={{ opacity: 1, y: 0 }}
+    transition={{ delay: 0.4 }}
+    className="card p-4 space-y-3"
+  >
+    <div>
+      <h2 className="font-display text-lg font-bold text-slate-900 tracking-tight">
+        Record Status Distribution
+      </h2>
+      <p className="text-[10px] text-slate-500 mt-0.5">
+        Breakdown of all {stats.totalEntries} submitted records
+      </p>
+    </div>
+    <div className="h-64">
+      <ResponsiveContainer width="100%" height="100%">
+        <PieChart>
+          <Pie
+            data={statusPieData}
+            dataKey="value"
+            nameKey="name"
+            cx="50%"
+            cy="50%"
+            innerRadius={50}
+            outerRadius={85}
+            paddingAngle={2}
+          >
+            {statusPieData.map((entry) => (
+              <Cell
+                key={entry.name}
+                fill={STATUS_COLORS[entry.name] || "#94a3b8"}
+              />
+            ))}
+          </Pie>
+          <Tooltip
+            formatter={(value: number, name: string) => [`${value} records`, name]}
+          />
+          <Legend
+            verticalAlign="bottom"
+            iconType="circle"
+            wrapperStyle={{ fontSize: "11px", fontWeight: 600 }}
+          />
+        </PieChart>
+      </ResponsiveContainer>
+    </div>
+  </motion.div>
+
+  {/* Histogram: progress distribution */}
+  <motion.div
+    initial={{ opacity: 0, y: 20 }}
+    animate={{ opacity: 1, y: 0 }}
+    transition={{ delay: 0.45 }}
+    className="card p-4 space-y-3"
+  >
+    <div>
+      <h2 className="font-display text-lg font-bold text-slate-900 tracking-tight">
+        Progress Distribution
+      </h2>
+      <p className="text-[10px] text-slate-500 mt-0.5">
+        Number of published records by completion range
+      </p>
+    </div>
+    <div className="h-64">
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart data={progressHistogram} margin={{ top: 8, right: 8, left: -20, bottom: 0 }}>
+          <XAxis
+            dataKey="label"
+            tick={{ fontSize: 10, fill: "#64748b" }}
+            axisLine={{ stroke: "#e2e8f0" }}
+          />
+          <YAxis
+            allowDecimals={false}
+            tick={{ fontSize: 10, fill: "#64748b" }}
+            axisLine={{ stroke: "#e2e8f0" }}
+          />
+          <Tooltip
+            formatter={(value: number) => [`${value} records`, "Count"]}
+            cursor={{ fill: "rgba(148,163,184,0.1)" }}
+          />
+          <Bar dataKey="count" fill="#4f46e5" radius={[6, 6, 0, 0]} />
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
+  </motion.div>
+</div>
 
         {/* ── Hub Overview ─────────────────────────────────────────── */}
         {hubs.length > 0 && (
@@ -771,85 +944,82 @@ export default function SeniorManagementDashboard() {
             transition={{ delay: 0.4 }}
             className="card p-4 space-y-4"
           >
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-3 flex-wrap">
               <div>
                 <h2 className="font-display text-lg font-bold text-slate-900 flex items-center gap-2">
                   <Globe className="w-4 h-4 text-brand-700" />
-                  Rwanda — Hub Performance Overview
+                  Hub Performance Overview
                 </h2>
                 <p className="text-[10px] text-slate-500 mt-0.5">
-                  Nation-wide view · {hubs.length} hubs across all provinces
+                  Published progress for the selected hub and its locations
                 </p>
               </div>
-              <span className="inline-flex items-center gap-1 rounded-full px-2 py-1 text-[10px] font-semibold bg-brand-50 text-brand-700 border border-brand-200/60">
-                <Activity className="w-3 h-3" />
-                Live
-              </span>
+              <div className="flex items-center gap-2">
+                <label htmlFor="hub-performance-select" className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+                  Select hub
+                </label>
+                <select
+                  id="hub-performance-select"
+                  value={selectedHubId}
+                  onChange={(event) => setSelectedHubId(event.target.value)}
+                  className="input-field w-auto min-w-[190px] text-xs py-2"
+                >
+                  {hubs.map((hub) => (
+                    <option key={hub.id} value={hub.id}>{hub.name} · {hub.region}</option>
+                  ))}
+                </select>
+              </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
-              {hubs.map((hub, i) => {
-                const hubEntries = rawEntries.filter((e) => {
-                  // entries don't directly carry hubId; use location-based proxy via published entries
-                  return e.status === "published";
-                });
-                // Hub-specific stats come from the hub.stats if available (from API detail call)
-                // For the list view, we show what the list API returns
-                const totalPublished = rawEntries.filter((e) => e.status === "published").length;
-                const perHubShare = hubs.length > 0 ? Math.round((1 / hubs.length) * totalPublished) : 0;
-                const colors = [
-                  "from-brand-50 to-brand-100 border-brand-200/60 text-brand-800",
-                  "from-emerald-50 to-emerald-100 border-emerald-200/60 text-emerald-800",
-                  "from-amber-50 to-amber-100 border-amber-200/60 text-amber-800",
-                  "from-violet-50 to-violet-100 border-violet-200/60 text-violet-800",
-                  "from-rose-50 to-rose-100 border-rose-200/60 text-rose-800",
-                ];
-                const colorClass = colors[i % colors.length];
-                return (
-                  <motion.div
-                    key={hub.id}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.45 + i * 0.05 }}
-                    className={`rounded-xl bg-gradient-to-br border p-3 space-y-2 ${colorClass}`}
-                  >
-                    <div className="flex items-start gap-2">
-                      <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-white/60 shrink-0">
-                        <Building2 className="w-4 h-4" />
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-xs font-bold leading-tight truncate">{hub.name}</p>
-                        <p className="text-[9px] opacity-70 leading-tight truncate">{hub.region}</p>
-                      </div>
+            {selectedHub ? (
+              <>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div className="rounded-xl bg-brand-50 border border-brand-200/60 p-3">
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-brand-700">Average Progress</p>
+                    <p className="font-display text-2xl font-bold text-brand-900">{selectedHubProgress.averageProgress.toFixed(1)}%</p>
+                    <p className="text-[10px] text-brand-700/80">Across published entries</p>
+                  </div>
+                  <div className="rounded-xl bg-emerald-50 border border-emerald-200/60 p-3">
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-700">Published Entries</p>
+                    <p className="font-display text-2xl font-bold text-emerald-900">{selectedHubProgress.entries}</p>
+                    <p className="text-[10px] text-emerald-700/80">Verified records in {selectedHub.name}</p>
+                  </div>
+                  <div className="rounded-xl bg-amber-50 border border-amber-200/60 p-3">
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-amber-700">Commissioned</p>
+                    <p className="font-display text-2xl font-bold text-amber-900">{selectedHubProgress.transformersCommissioned}</p>
+                    <p className="text-[10px] text-amber-700/80">Transformers commissioned</p>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-xs font-semibold text-slate-700 flex items-center gap-1.5"><Building2 className="w-3.5 h-3.5 text-brand-700" /> Location progress</h3>
+                    <span className="text-[10px] text-slate-500">{selectedHubProgress.locations.length} locations</span>
+                  </div>
+                  {selectedHubProgress.locations.length === 0 ? (
+                    <p className="rounded-xl border border-dashed border-slate-200 py-5 text-center text-xs text-slate-500">No locations or published progress entries are linked to this hub yet.</p>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                      {selectedHubProgress.locations.map((location) => (
+                        <div key={location.id} className="rounded-xl border border-slate-200/60 p-2.5">
+                          <div className="flex items-start justify-between gap-2 mb-1.5">
+                            <p className="text-xs font-bold text-slate-900 truncate">{location.name}</p>
+                            <span className="font-mono text-xs font-bold text-brand-800">{location.progress.toFixed(1)}%</span>
+                          </div>
+                          <div className="h-1.5 rounded-full bg-slate-100 overflow-hidden"><div className="h-full rounded-full bg-gradient-to-r from-brand-500 to-emerald-500" style={{ width: `${Math.min(location.progress, 100)}%` }} /></div>
+                          <p className="text-[10px] text-slate-500 mt-1">{location.entries} published record{location.entries === 1 ? "" : "s"}</p>
+                        </div>
+                      ))}
                     </div>
-                    <div className="grid grid-cols-2 gap-1 pt-1">
-                      <div className="rounded-lg bg-white/50 p-1.5 text-center">
-                        <p className="font-display text-base font-bold leading-tight">
-                          {hub.branchManagerCount ?? 0}
-                        </p>
-                        <p className="text-[9px] opacity-70 leading-tight">Hub Mgrs</p>
-                      </div>
-                      <div className="rounded-lg bg-white/50 p-1.5 text-center">
-                        <p className="font-display text-base font-bold leading-tight">
-                          {hub.siteEngineerCount ?? 0}
-                        </p>
-                        <p className="text-[9px] opacity-70 leading-tight">Branch Mgrs</p>
-                      </div>
-                    </div>
-                    <div className="rounded-lg bg-white/50 p-1.5 text-center">
-                      <p className="font-display text-sm font-bold leading-tight">
-                        {hub.locationCount ?? 0}
-                      </p>
-                      <p className="text-[9px] opacity-70 leading-tight">Locations</p>
-                    </div>
-                  </motion.div>
-                );
-              })}
-            </div>
+                  )}
+                </div>
+              </>
+            ) : (
+              <p className="py-5 text-center text-xs text-slate-500">Select a hub to view its progress.</p>
+            )}
           </motion.div>
         )}
 
-        <motion.div
+        {/* <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.45 }}
@@ -916,7 +1086,7 @@ export default function SeniorManagementDashboard() {
               </p>
             </div>
           </div>
-        </motion.div>
+        </motion.div> */}
       </main>
     </div>
   );

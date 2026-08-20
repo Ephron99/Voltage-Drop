@@ -158,7 +158,7 @@ export default function BranchManagerDashboard() {
               </span>
             </div>
             <h1 className="font-display text-3xl font-bold tracking-tight text-slate-900">
-              Review & Approval Dashboard
+              Branch Dashboard
             </h1>
             <p className="text-slate-500 text-sm">
               {new Date().toLocaleDateString("en-GB", {
@@ -181,7 +181,7 @@ export default function BranchManagerDashboard() {
           )}
         </motion.div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           <StatCard
             title="Pending Review"
             value={stats.pending}
@@ -209,7 +209,7 @@ export default function BranchManagerDashboard() {
             iconColor="text-rose-700"
             delay={0.15}
           />
-          <StatCard
+          {/* <StatCard
             title="This Week"
             value={stats.totalThisWeek}
             subtitle="Total entries processed"
@@ -217,7 +217,7 @@ export default function BranchManagerDashboard() {
             iconBg="bg-brand-50"
             iconColor="text-brand-700"
             delay={0.2}
-          />
+          /> */}
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -395,12 +395,9 @@ export default function BranchManagerDashboard() {
                           {getLineName(entry.lineId)}
                         </p>
                       </div>
-                      <Link
-                        to={`/branch-manager/review/${entry.id}`}
-                        className="p-1.5 rounded-lg text-slate-400 group-hover:text-emerald-700 group-hover:bg-emerald-100 transition-colors"
-                      >
+                      <span className="p-1.5 rounded-lg text-slate-300 bg-slate-100/80">
                         <Eye className="w-3.5 h-3.5" />
-                      </Link>
+                      </span>
                     </div>
                     <div className="flex items-center justify-between">
                       <p className="text-xs text-emerald-700 font-semibold">
@@ -640,13 +637,10 @@ export default function BranchManagerDashboard() {
                           <StatusBadge status="submitted" />
                         </td>
                         <td className="py-4 text-right">
-                          <Link
-                            to={`/branch-manager/review/${entry.id}`}
-                            className="btn-primary text-sm py-2 px-3 !gap-1"
-                          >
+                          <span className="inline-flex items-center gap-1 rounded-lg bg-slate-100 px-2.5 py-2 text-xs font-semibold text-slate-500">
                             <Eye className="w-4 h-4" />
-                            Review
-                          </Link>
+                            Hub Review
+                          </span>
                         </td>
                       </motion.tr>
                     );

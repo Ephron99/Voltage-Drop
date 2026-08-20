@@ -1,94 +1,76 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo } from "react";
 import { motion } from "framer-motion";
 import {
   LayoutDashboard,
-  FolderKanban,
   Network,
-  Wallet,
   ListChecks,
   TrendingUp,
-  Plus,
   ArrowRight,
   Activity,
-  DollarSign,
   CheckCircle2,
   Clock,
+  FileCheck2,
+  Send,
+  Inbox,
+  BarChart3,
+  Zap,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useAuthStore } from "@/store/authStore";
-import { useManagementStore } from "@/store/managementStore";
+import { useProgressStore } from "@/store/progressStore";
 import { Navbar } from "@/components/Navbar";
 import { StatCard } from "@/components/StatCard";
-import { projectStatusLabels } from "@/types";
-import type { ProjectStatus } from "@/types";
+import { StatusBadge } from "@/components/StatusBadge";
 
 const navItems = [
   { label: "Dashboard", path: "/hub-manager", icon: <LayoutDashboard className="w-4 h-4" /> },
-  { label: "Projects", path: "/hub-manager/projects", icon: <FolderKanban className="w-4 h-4" /> },
+  // { label: "Projects", path: "/hub-manager/projects", icon: <ListChecks className="w-4 h-4" /> },
   { label: "Network Assets", path: "/hub-manager/assets", icon: <Network className="w-4 h-4" /> },
   { label: "Progress Monitor", path: "/hub-manager/monitor", icon: <TrendingUp className="w-4 h-4" /> },
 ];
 
-const statusColors: Record<ProjectStatus, string> = {
-  planning: "bg-slate-100 text-slate-700",
-  active: "bg-emerald-100 text-emerald-700",
-  on_hold: "bg-amber-100 text-amber-700",
-  completed: "bg-blue-100 text-blue-700",
-  cancelled: "bg-rose-100 text-rose-700",
-};
-
 export default function PlanningDashboard() {
   const { user } = useAuthStore();
-  const { projects, fetchProjects, loading } = useManagementStore();
-  const [showCreateForm, setShowCreateForm] = useState(false);
+  const { entries: progressEntries, fetchEntries } = useProgressStore();
 
   useEffect(() => {
-    fetchProjects();
-  }, [fetchProjects]);
+    fetchEntries();
+  }, [fetchEntries]);
 
   const stats = useMemo(() => {
-    const active = projects.filter((p) => p.status === "active");
-    const completed = projects.filter((p) => p.status === "completed");
-    const totalBudget = projects.reduce((sum, p) => sum + (p.totalBudget || 0), 0);
-    const totalAllocated = projects.reduce(
-      (sum, p) => sum + (p.fundSummary?.totalAllocated || 0),
+    const approved = progressEntries.filter((entry) => ["approved", "published"].includes(entry.status));
+    const submitted = progressEntries.filter((entry) => entry.status === "submitted");
+    const averageProgress = progressEntries.length > 0
+      ? Math.round(progressEntries.reduce((sum, entry) => sum + entry.progressPct, 0) / progressEntries.length)
+      : 0;
+    const transformersCommissioned = progressEntries.reduce(
+      (sum, entry) => sum + entry.transformersCommissioned,
       0
     );
-    const totalDisbursed = projects.reduce(
-      (sum, p) => sum + (p.fundSummary?.totalDisbursed || 0),
-      0
-    );
-    const totalTasks = projects.reduce(
-      (sum, p) => sum + (p.taskSummary?.totalTasks || 0),
-      0
-    );
-    const completedTasks = projects.reduce(
-      (sum, p) => sum + (p.taskSummary?.completedTasks || 0),
-      0
-    );
-
     return {
-      totalProjects: projects.length,
-      activeProjects: active.length,
-      completedProjects: completed.length,
-      totalBudget,
-      totalAllocated,
-      totalDisbursed,
-      fundAvailable: totalAllocated - totalDisbursed,
-      totalTasks,
-      completedTasks,
-      taskCompletionRate: totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0,
+      totalEntries: progressEntries.length,
+      approvedEntries: approved.length,
+      submittedEntries: submitted.length,
+      averageProgress,
+      transformersCommissioned,
     };
-  }, [projects]);
+  }, [progressEntries]);
 
-  const formatCurrency = (n: number) =>
-    new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "RWF",
-      maximumFractionDigits: 0,
-    }).format(n);
+  const pendingReviews = useMemo(
+    () =>
+      [...progressEntries]
+        .filter((e) => e.status === "submitted")
+        .sort(
+          (a, b) =>
+            new Date(a.submittedAt || a.createdAt).getTime() -
+            new Date(b.submittedAt || b.createdAt).getTime()
+        ),
+    [progressEntries]
+  );
 
-  const recentProjects = projects.slice(0, 5);
+  const recentEntries = [...progressEntries]
+    .sort((a, b) => new Date(b.updatedAt || b.createdAt).getTime() - new Date(a.updatedAt || a.createdAt).getTime())
+    .slice(0, 6);
 
   return (
     <div className="min-h-screen bg-electric-grid">
@@ -105,127 +87,209 @@ export default function PlanningDashboard() {
               Hub Manager Department
             </p>
             <h1 className="font-display text-2xl font-bold tracking-tight text-slate-900">
-              Hub Manager Portal
+              Progress Dashboard
             </h1>
             <p className="text-slate-500 text-xs">
-              Welcome back, {user?.name.split(" ")[0]} · Manage projects, scopes, budgets, and tasks
+              Welcome back, {user?.name.split(" ")[0]} · Track field progress and review submissions
             </p>
           </div>
 
-          <Link
+          {/* <Link
             to="/hub-manager/projects"
             className="btn-primary"
           >
             <Plus className="w-4 h-4" />
             New Project
-          </Link>
+          </Link> */}
         </motion.div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
           <StatCard
-            title="Total Projects"
-            value={stats.totalProjects}
-            subtitle={`${stats.activeProjects} active · ${stats.completedProjects} completed`}
-            icon={<FolderKanban className="w-5 h-5" />}
+            title="Progress Entries"
+            value={stats.totalEntries}
+            subtitle={`${stats.submittedEntries} awaiting review`}
+            icon={<BarChart3 className="w-5 h-5" />}
             iconBg="bg-violet-50"
             iconColor="text-violet-700"
-            trend={{ direction: "up", value: `${stats.activeProjects} active now` }}
+            trend={{ direction: stats.submittedEntries > 0 ? "down" : "up", value: stats.submittedEntries > 0 ? "Review needed" : "All reviewed" }}
             delay={0}
           />
           <StatCard
-            title="Total Budget"
-            value={formatCurrency(stats.totalBudget)}
-            subtitle="Across all projects"
-            icon={<Wallet className="w-5 h-5" />}
+            title="Average Progress"
+            value={`${stats.averageProgress}%`}
+            subtitle="Across all field entries"
+            icon={<TrendingUp className="w-5 h-5" />}
             iconBg="bg-emerald-50"
             iconColor="text-emerald-700"
-            trend={{ direction: "up", value: "Budget allocated" }}
+            trend={{ direction: stats.averageProgress >= 50 ? "up" : "down", value: stats.averageProgress >= 50 ? "On track" : "Needs focus" }}
             delay={0.05}
           />
           <StatCard
-            title="Funds Available"
-            value={formatCurrency(stats.fundAvailable)}
-            subtitle={`${formatCurrency(stats.totalDisbursed)} disbursed`}
-            icon={<DollarSign className="w-5 h-5" />}
+            title="Approved Entries"
+            value={stats.approvedEntries}
+            subtitle="Approved or published"
+            icon={<CheckCircle2 className="w-5 h-5" />}
             iconBg="bg-amber-50"
             iconColor="text-amber-700"
             trend={
-              stats.fundAvailable > stats.totalDisbursed
-                ? { direction: "up", value: "Healthy" }
-                : { direction: "down", value: "Monitor" }
+              { direction: "up", value: "Verified progress" }
             }
             delay={0.1}
           />
           <StatCard
-            title="Task Completion"
-            value={`${stats.taskCompletionRate}%`}
-            subtitle={`${stats.completedTasks} of ${stats.totalTasks} tasks done`}
-            icon={<CheckCircle2 className="w-5 h-5" />}
+            title="Transformers Commissioned"
+            value={stats.transformersCommissioned}
+            subtitle="Reported in field entries"
+            icon={<Zap className="w-5 h-5" />}
             iconBg="bg-blue-50"
             iconColor="text-blue-700"
-            trend={{ direction: "up", value: "On track" }}
+            trend={{ direction: "up", value: "Field output" }}
             delay={0.15}
           />
+          <StatCard
+            title="Pending Reviews"
+            value={pendingReviews.length}
+            subtitle="Progress entries awaiting your review"
+            icon={<Inbox className="w-5 h-5" />}
+            iconBg="bg-rose-50"
+            iconColor="text-rose-700"
+            trend={
+              pendingReviews.length === 0
+                ? { direction: "up", value: "All caught up" }
+                : { direction: "down", value: "Needs attention" }
+            }
+            delay={0.2}
+          />
         </div>
+
+        {/* ── Pending Reviews ──────────────────────────────────────── */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.22 }}
+          className="card p-4 space-y-3"
+        >
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="font-display text-lg font-bold text-slate-900 tracking-tight flex items-center gap-1.5">
+                <FileCheck2 className="w-4 h-4 text-rose-700" />
+                Pending Reviews
+              </h2>
+              <p className="text-[10px] text-slate-500 mt-0.5">
+                Progress entries submitted by Branch Managers, awaiting your approval
+              </p>
+            </div>
+            <Link
+              to="/hub-manager/monitor"
+              className="text-xs font-semibold text-violet-700 hover:text-violet-900 inline-flex items-center gap-1"
+            >
+              View All <ArrowRight className="w-3 h-3" />
+            </Link>
+          </div>
+
+          {pendingReviews.length === 0 ? (
+            <div className="py-8 text-center text-sm text-slate-500">
+              <CheckCircle2 className="w-8 h-8 mx-auto mb-2 text-slate-300" />
+              No entries waiting on review. You're all caught up.
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {pendingReviews.slice(0, 6).map((entry, i) => (
+                <motion.div
+                  key={entry.id}
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.25 + i * 0.05 }}
+                >
+                  <Link
+                    to={`/hub-manager/review/${entry.id}`}
+                    className="flex items-center justify-between gap-3 rounded-xl border border-slate-200/60 p-3 hover:border-rose-200/80 hover:bg-rose-50/30 transition-colors"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-9 h-9 rounded-xl bg-rose-50 text-rose-700 flex items-center justify-center shrink-0">
+                        <Send className="w-4 h-4" />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <p className="text-xs font-bold text-slate-900 truncate">
+                            #{entry.id.slice(-8).toUpperCase()}
+                          </p>
+                          <StatusBadge status={entry.status} />
+                        </div>
+                        <p className="text-[10px] text-slate-500 mt-0.5 truncate">
+                          {entry.siteEngineerName || "Unknown Branch Manager"} ·{" "}
+                          {entry.progressPct.toFixed(1)}% progress ·{" "}
+                          {new Date(entry.submittedAt || entry.entryDate).toLocaleDateString("en-GB")}
+                        </p>
+                      </div>
+                    </div>
+                    <ArrowRight className="w-4 h-4 text-slate-400 shrink-0" />
+                  </Link>
+                </motion.div>
+              ))}
+              {pendingReviews.length > 6 && (
+                <Link
+                  to="/hub-manager/monitor"
+                  className="block text-center text-xs font-semibold text-violet-700 hover:text-violet-900 pt-1"
+                >
+                  +{pendingReviews.length - 6} more awaiting review
+                </Link>
+              )}
+            </div>
+          )}
+        </motion.div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
+            transition={{ delay: 0.25 }}
             className="lg:col-span-2 card p-4 space-y-3"
           >
             <div className="flex items-center justify-between">
               <h2 className="font-display text-lg font-bold text-slate-900 tracking-tight flex items-center gap-1.5">
                 <Activity className="w-4 h-4 text-violet-700" />
-                Recent Projects
+                Recent Progress Entries
               </h2>
               <Link
-                to="/hub-manager/projects"
+                to="/hub-manager/monitor"
                 className="text-xs font-semibold text-violet-700 hover:text-violet-900 inline-flex items-center gap-1"
               >
                 View All <ArrowRight className="w-3 h-3" />
               </Link>
             </div>
 
-            {loading && projects.length === 0 ? (
+            {recentEntries.length === 0 ? (
               <div className="py-8 text-center text-sm text-slate-500">
                 <Clock className="w-6 h-6 mx-auto mb-2 text-slate-300" />
-                Loading projects...
-              </div>
-            ) : recentProjects.length === 0 ? (
-              <div className="py-8 text-center text-sm text-slate-500">
-                <FolderKanban className="w-8 h-8 mx-auto mb-2 text-slate-300" />
-                No projects yet. Create your first project to get started.
+                No progress entries have been submitted yet.
               </div>
             ) : (
               <div className="space-y-2">
-                {recentProjects.map((project, i) => (
+                {recentEntries.map((entry, i) => (
                   <motion.div
-                    key={project.id}
+                    key={entry.id}
                     initial={{ opacity: 0, x: -10 }}
                     animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.25 + i * 0.05 }}
+                    transition={{ delay: 0.3 + i * 0.05 }}
                   >
                     <Link
-                      to={`/hub-manager/projects/${project.id}`}
+                      to={`/hub-manager/review/${entry.id}`}
                       className="block rounded-xl border border-slate-200/60 p-3 hover:border-violet-200/80 hover:bg-violet-50/30 transition-colors"
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2 mb-0.5">
                             <span className="font-mono text-[10px] font-bold text-violet-700 bg-violet-50 px-1.5 py-0.5 rounded">
-                              {project.code}
+                              #{entry.id.slice(-8).toUpperCase()}
                             </span>
-                            <span className={`status-pill ${statusColors[project.status]}`}>
-                              {projectStatusLabels[project.status]}
-                            </span>
+                            <StatusBadge status={entry.status} />
                           </div>
                           <p className="text-sm font-bold text-slate-900 truncate">
-                            {project.name}
+                            {entry.siteEngineerName || "Unknown Site Engineer"}
                           </p>
                           <p className="text-[10px] text-slate-500 mt-0.5">
-                            {project.scopeCount || 0} scopes · {project.taskSummary?.totalTasks || 0} tasks · {formatCurrency(project.totalBudget)}
+                            {entry.progressPct.toFixed(1)}% progress · {entry.transformersCommissioned} transformers commissioned · {new Date(entry.entryDate).toLocaleDateString("en-GB")}
                           </p>
                         </div>
                         <ArrowRight className="w-4 h-4 text-slate-400 shrink-0 mt-1" />
@@ -240,7 +304,7 @@ export default function PlanningDashboard() {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.25 }}
+            transition={{ delay: 0.3 }}
             className="card p-4 space-y-3"
           >
             <h2 className="font-display text-lg font-bold text-slate-900 tracking-tight">
@@ -248,15 +312,15 @@ export default function PlanningDashboard() {
             </h2>
             <div className="space-y-2">
               <Link
-                to="/hub-manager/projects"
+                to="/hub-manager/monitor"
                 className="flex items-center gap-3 rounded-xl border border-slate-200/60 p-3 hover:border-violet-200/80 hover:bg-violet-50/30 transition-colors"
               >
                 <div className="w-9 h-9 rounded-xl bg-violet-50 text-violet-700 flex items-center justify-center shrink-0">
-                  <FolderKanban className="w-4 h-4" />
+                  <TrendingUp className="w-4 h-4" />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-xs font-bold text-slate-900">Manage Projects</p>
-                  <p className="text-[10px] text-slate-500">Create and configure projects</p>
+                  <p className="text-xs font-bold text-slate-900">Monitor Progress</p>
+                  <p className="text-[10px] text-slate-500">Compare progress against plans</p>
                 </div>
               </Link>
               <Link

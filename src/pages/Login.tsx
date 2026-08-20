@@ -114,10 +114,10 @@ export default function Login() {
 
   const handleDemoLogin = async (role: UserRole) => {
     const demoUsers: Record<UserRole, { email: string; password: string }> = {
-      branch_manager: { email: "engineer.kigali@reg.rw", password: "password123" },
-      hub_manager:    { email: "manager@branch.com",     password: "password123" },
+      branch_manager: { email: "manager.kamonyi@reg.rw", password: "password123" },
+      hub_manager:    { email: "manager.southern@reg.rw",     password: "password123" },
       senior_manager: { email: "director@company.com",   password: "password123" },
-      admin:          { email: "admin@it.com",            password: "password123" },
+      admin:          { email: "superadmin@company.com",            password: "password123" },
     };
     const creds = demoUsers[role];
     if (!creds) return;
@@ -248,21 +248,23 @@ export default function Login() {
               className="card p-1.5 bg-gradient-to-br from-slate-100 to-slate-50 border-slate-200"
             >
               <div className="grid grid-cols-2 gap-1">
-                {availableRoles.map((role) => (
+                 {availableRoles.map((role) => (
                   <button
                     key={role}
                     type="button"
-                    onClick={() => setValue("role", role)}
-                    className={`relative px-2 py-2.5 rounded-xl text-[10px] font-semibold transition-all duration-200 flex items-center justify-center gap-1.5 ${
-                      selectedRole === role
-                        ? "bg-white text-brand-800 shadow-md shadow-slate-900/5"
-                        : "text-slate-600 hover:text-slate-800 hover:bg-white/50"
-                    }`}
+                    onClick={() => handleDemoLogin(role)}
+                    disabled={demoLoading !== null}
+                    className={`py-2 px-2 rounded-xl text-[10px] font-semibold border transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed ${roleColors[role]}`}
                   >
-                    {roleIcons[role]}
-                    <span>{roleLabels[role]}</span>
+                    {demoLoading === role ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      roleIcons[role]
+                    )}
+                    {roleLabels[role]}
                   </button>
                 ))}
+
               </div>
             </motion.div>
 
@@ -370,31 +372,14 @@ export default function Login() {
               className="pt-3 border-t border-slate-200/60 space-y-2.5"
             >
               <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 text-center">
-                Quick Demo Login
+                {/* Quick Demo Login */}
               </p>
-              <div className="grid grid-cols-2 gap-1.5">
-                {availableRoles.map((role) => (
-                  <button
-                    key={role}
-                    type="button"
-                    onClick={() => handleDemoLogin(role)}
-                    disabled={demoLoading !== null}
-                    className={`py-2 px-2 rounded-xl text-[10px] font-semibold border transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed ${roleColors[role]}`}
-                  >
-                    {demoLoading === role ? (
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    ) : (
-                      roleIcons[role]
-                    )}
-                    {roleLabels[role]}
-                  </button>
-                ))}
-              </div>
+            
               <div className="rounded-xl bg-amber-50 border border-amber-200/50 p-2.5">
-                <p className="text-[11px] text-amber-800 leading-relaxed">
+                {/* <p className="text-[11px] text-amber-800 leading-relaxed">
                   <span className="font-semibold">Demo credentials:</span>{" "}
                   Password is <span className="font-mono font-bold">password123</span> for all demo accounts.
-                </p>
+                </p> */}
               </div>
             </motion.div>
 

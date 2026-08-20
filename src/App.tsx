@@ -134,15 +134,6 @@ export default function App() {
             </ProtectedRoute>
           }
         />
-        {/* Review a submitted entry */}
-        <Route
-          path="/branch-manager/review/:id"
-          element={
-            <ProtectedRoute allowedRoles={["branch_manager"]}>
-              <ReviewEntry />
-            </ProtectedRoute>
-          }
-        />
         {/* Published records (branch manager view) */}
         <Route
           path="/branch-manager/published"
@@ -194,6 +185,14 @@ export default function App() {
             </ProtectedRoute>
           }
         />
+        <Route
+          path="/hub-manager/review/:id"
+          element={
+            <ProtectedRoute allowedRoles={["hub_manager", "senior_manager", "admin"]}>
+              <ReviewEntry />
+            </ProtectedRoute>
+          }
+        />
 
         {/* ── Senior Manager Portal ─────────────────────────────── */}
         <Route
@@ -209,6 +208,14 @@ export default function App() {
           element={
             <ProtectedRoute allowedRoles={["senior_manager", "admin"]}>
               <ManagementRecords />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/senior-manager/review/:id"
+          element={
+            <ProtectedRoute allowedRoles={["senior_manager", "admin"]}>
+              <ReviewEntry />
             </ProtectedRoute>
           }
         />

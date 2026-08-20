@@ -25,18 +25,44 @@ import { Navbar } from "@/components/Navbar";
 import { ProgressEntryDetail } from "@/components/ProgressEntryDetail";
 import { StatusBadge } from "@/components/StatusBadge";
 
-const navItems = [
-  {
-    label: "Dashboard",
-    path: "/branch-manager",
-    icon: <ShieldCheck className="w-4 h-4" />,
-  },
-  {
-    label: "Published",
-    path: "/branch-manager/published",
-    icon: <FileCheck className="w-4 h-4" />,
-  },
-];
+const navItemsByRole: Record<string, { label: string; path: string; icon: JSX.Element }[]> = {
+  branch_manager: [
+    {
+      label: "Dashboard",
+      path: "/branch-manager",
+      icon: <ShieldCheck className="w-4 h-4" />,
+    },
+    {
+      label: "Published",
+      path: "/branch-manager/published",
+      icon: <FileCheck className="w-4 h-4" />,
+    },
+  ],
+  hub_manager: [
+    {
+      label: "Dashboard",
+      path: "/hub-manager",
+      icon: <ShieldCheck className="w-4 h-4" />,
+    },
+    {
+      label: "Progress Monitor",
+      path: "/hub-manager/monitor",
+      icon: <FileCheck className="w-4 h-4" />,
+    },
+  ],
+  senior_manager: [
+    {
+      label: "Dashboard",
+      path: "/senior-manager",
+      icon: <ShieldCheck className="w-4 h-4" />,
+    },
+    {
+      label: "Published Records",
+      path: "/senior-manager/records",
+      icon: <FileCheck className="w-4 h-4" />,
+    },
+  ],
+};
 
 const rejectSchema = z.object({
   comments: z
@@ -61,6 +87,9 @@ export default function ReviewEntry() {
   } = useProgressStore();
   const managerId = user?.id ?? "";
   const managerName = user?.name ?? "";
+  const portalRole = user?.role === "senior_manager" ? "senior_manager" : user?.role === "hub_manager" ? "hub_manager" : "branch_manager";
+  const navItems = navItemsByRole[portalRole] ?? navItemsByRole.branch_manager;
+  const dashboardPath = portalRole === "senior_manager" ? "/senior-manager" : portalRole === "hub_manager" ? "/hub-manager" : "/branch-manager";
 
   const entry = id ? getEntryById(id) : undefined;
 
@@ -77,11 +106,13 @@ export default function ReviewEntry() {
     register,
     handleSubmit,
     reset: resetReject,
+    watch,
     formState: { errors: rejectErrors, isSubmitting: rejectSubmitting },
   } = useForm<RejectValues>({
     resolver: zodResolver(rejectSchema),
     defaultValues: { comments: "" },
   });
+  const commentsValue = watch("comments") ?? "";
 
   const showToast = (
     type: "success" | "error",
@@ -96,9 +127,9 @@ export default function ReviewEntry() {
     return (
       <div className="min-h-screen bg-electric-grid">
         <Navbar
-          role="branch_manager"
+          role={portalRole}
           navItems={navItems}
-          title="Hub Manager Portal"
+          title={portalRole === "senior_manager" ? "Senior Manager Portal" : portalRole === "hub_manager" ? "Hub Manager Portal" : "Hub Manager Portal"}
         />
         <main className="container py-16 max-w-md text-center space-y-4 mx-auto">
           <div className="flex items-center justify-center w-20 h-20 rounded-full bg-slate-100 text-slate-400 mx-auto">
@@ -110,7 +141,7 @@ export default function ReviewEntry() {
           <p className="text-sm text-slate-500">
             The progress entry you're trying to review no longer exists or may have been deleted.
           </p>
-          <Link to="/branch-manager" className="btn-primary inline-flex">
+          <Link to={dashboardPath} className="btn-primary inline-flex">
             <ArrowLeft className="w-4 h-4" />
             Back to Dashboard
           </Link>
@@ -152,7 +183,7 @@ export default function ReviewEntry() {
         "Entry Published 🎉",
         "The progress entry has been published. Dashboards will now reflect this data."
       );
-      setTimeout(() => navigate("/branch-manager"), 1800);
+      setTimeout(() => navigate(dashboardPath), 1800);
     } else {
       showToast("error", "Publish Failed", "Unable to publish entry. Please try again.");
     }
@@ -168,9 +199,9 @@ export default function ReviewEntry() {
       showToast(
         "success",
         "Entry Rejected",
-        "Branch Manager has been notified and will revise the entry based on your comments."
+        "The engineer has been notified and will revise the entry based on your comments."
       );
-      setTimeout(() => navigate("/branch-manager"), 1800);
+      setTimeout(() => navigate(dashboardPath), 1800);
     } else {
       showToast("error", "Rejection Failed", "Unable to reject entry. Please try again.");
     }
@@ -192,9 +223,9 @@ export default function ReviewEntry() {
   return (
     <div className="min-h-screen bg-electric-grid">
       <Navbar
-        role="branch_manager"
+        role={portalRole}
         navItems={navItems}
-        title="Hub Manager Portal"
+        title={portalRole === "senior_manager" ? "Senior Manager Portal" : "Hub Manager Portal"}
       />
 
       <main className="container py-8 max-w-5xl space-y-6">
@@ -205,7 +236,7 @@ export default function ReviewEntry() {
         >
           <div className="flex items-center gap-3">
             <Link
-              to="/branch-manager"
+              to={dashboardPath}
               className="p-2 rounded-xl text-slate-600 hover:text-brand-800 hover:bg-brand-50 transition-colors"
             >
               <ArrowLeft className="w-5 h-5" />
@@ -487,7 +518,7 @@ export default function ReviewEntry() {
                       </p>
                     )}
                     <p className="text-xs text-slate-400 ml-auto">
-                      {watchComments?.length ?? 0}/500
+                      {commentsValue.length}/500
                     </p>
                   </div>
                 </div>
@@ -585,6 +616,3 @@ export default function ReviewEntry() {
   );
 }
 
-function watchComments() {
-  return undefined;
-}
