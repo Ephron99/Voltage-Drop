@@ -25,6 +25,35 @@ async function initDatabase() {
       await conn.query(stmt);
     }
 
+    const [scopeColumns] = await conn.query('SHOW COLUMNS FROM scopes');
+    const scopeColumnNames = new Set(scopeColumns.map((column) => column.Field));
+
+    const [progressColumns] = await conn.query('SHOW COLUMNS FROM progress_entries');
+    const progressColumnNames = new Set(progressColumns.map((column) => column.Field));
+    if (!progressColumnNames.has('scope_id')) {
+      await conn.query('ALTER TABLE progress_entries ADD COLUMN scope_id CHAR(36) NULL');
+    }
+    if (!progressColumnNames.has('completed_km')) {
+      await conn.query('ALTER TABLE progress_entries ADD COLUMN completed_km DECIMAL(10,3) DEFAULT 0');
+    }
+    await conn.query('ALTER TABLE progress_entries MODIFY COLUMN location_id CHAR(36) NULL');
+
+    if (!scopeColumnNames.has('line_id')) {
+      await conn.query('ALTER TABLE scopes ADD COLUMN line_id CHAR(36) NULL');
+    }
+
+    if (!scopeColumnNames.has('transformer_id')) {
+      await conn.query('ALTER TABLE scopes ADD COLUMN transformer_id CHAR(36) NULL');
+    }
+
+    if (scopeColumnNames.has('status')) {
+      const [statusColumn] = await conn.query('SHOW COLUMNS FROM scopes LIKE ?', ['status']);
+      const statusType = statusColumn?.[0]?.Type || '';
+      if (!statusType.includes("'approved'")) {
+        await conn.query("ALTER TABLE scopes MODIFY COLUMN status ENUM('draft', 'approved') NOT NULL DEFAULT 'draft'");
+      }
+    }
+
     console.log('[INIT-DB] Database created and schema applied successfully.');
     return true;
   } catch (err) {

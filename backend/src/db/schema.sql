@@ -139,24 +139,32 @@ CREATE TABLE IF NOT EXISTS projects (
 CREATE TABLE IF NOT EXISTS scopes (
     id CHAR(36) PRIMARY KEY,
     project_id CHAR(36) NOT NULL,
+    hub_id CHAR(36) NULL,
+    branch_id CHAR(36) NULL,
+    line_id CHAR(36) NULL,
+    transformer_id CHAR(36) NULL,
     name VARCHAR(255) NOT NULL,
     description TEXT,
-    status ENUM('draft', 'active', 'completed', 'cancelled') DEFAULT 'draft',
+    status ENUM('draft', 'approved') DEFAULT 'draft',
     planned_km DECIMAL(10,3) DEFAULT 0,
     planned_transformers INT DEFAULT 0,
     budget_allocated DECIMAL(15,2) DEFAULT 0,
-    location_id CHAR(36) NULL,
     created_by CHAR(36) NOT NULL,
     approved_by CHAR(36) NULL,
     approved_at DATETIME NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
-    FOREIGN KEY (location_id) REFERENCES locations(id),
+    FOREIGN KEY (hub_id) REFERENCES hubs(id),
+    FOREIGN KEY (branch_id) REFERENCES branches(id),
+    FOREIGN KEY (line_id) REFERENCES `lines`(id),
+    FOREIGN KEY (transformer_id) REFERENCES transformers(id),
     FOREIGN KEY (created_by) REFERENCES users(id),
     FOREIGN KEY (approved_by) REFERENCES users(id),
     INDEX idx_scope_project (project_id),
-    INDEX idx_scope_status (status)
+    INDEX idx_scope_status (status),
+    INDEX idx_scope_hub (hub_id),
+    INDEX idx_scope_branch (branch_id)
 );
 
 CREATE TABLE IF NOT EXISTS tasks (
@@ -228,11 +236,13 @@ CREATE TABLE IF NOT EXISTS fund_transactions (
 CREATE TABLE IF NOT EXISTS progress_entries (
     id CHAR(36) PRIMARY KEY,
     entry_date DATE NOT NULL,
-    location_id CHAR(36) NOT NULL,
+    location_id CHAR(36) NULL,
+    scope_id CHAR(36) NULL,
     line_id CHAR(36) NOT NULL,
     voltage_level ENUM('MV', 'LV') NOT NULL,
     transformer_id CHAR(36) NOT NULL,
     progress_pct DECIMAL(5,2) DEFAULT 0,
+    completed_km DECIMAL(10,3) DEFAULT 0,
     transformers_installed INT DEFAULT 0,
     transformers_terminated INT DEFAULT 0,
     transformers_tested INT DEFAULT 0,
@@ -247,6 +257,7 @@ CREATE TABLE IF NOT EXISTS progress_entries (
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (location_id) REFERENCES locations(id),
+    FOREIGN KEY (scope_id) REFERENCES scopes(id) ON DELETE SET NULL,
     FOREIGN KEY (line_id) REFERENCES `lines`(id),
     FOREIGN KEY (transformer_id) REFERENCES transformers(id),
     FOREIGN KEY (site_engineer_id) REFERENCES users(id),
@@ -255,6 +266,7 @@ CREATE TABLE IF NOT EXISTS progress_entries (
     INDEX idx_status (status),
     INDEX idx_engineer (site_engineer_id),
     INDEX idx_manager (branch_manager_id)
+    ,INDEX idx_entry_scope (scope_id)
 );
 
 -- ============================================================

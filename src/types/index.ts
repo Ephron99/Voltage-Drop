@@ -88,7 +88,9 @@ export interface Transformer {
 export interface ProgressEntry {
   id: string;
   entryDate: string;
-  locationId: string;
+  locationId?: string;
+  scopeId?: string;
+  completedKm?: number;
   lineId: string;
   voltageLevel: VoltageLevel;
   transformerId: string;
@@ -118,7 +120,9 @@ export interface LoginFormData {
 
 export interface ProgressFormData {
   entryDate: string;
-  locationId: string;
+  locationId?: string;
+  scopeId: string;
+  completedKm: number;
   lineId: string;
   voltageLevel: VoltageLevel;
   transformerId: string;
@@ -138,7 +142,7 @@ export interface RejectFormData {
 // ============================================================
 
 export type ProjectStatus = "planning" | "active" | "on_hold" | "completed" | "cancelled";
-export type ScopeStatus = "draft" | "active" | "completed" | "cancelled";
+export type ScopeStatus = "draft" | "approved";
 export type TaskStatus = "pending" | "assigned" | "in_progress" | "completed" | "cancelled";
 export type TaskPriority = "low" | "medium" | "high" | "critical";
 export type BudgetItemStatus = "planned" | "active" | "exhausted" | "closed";
@@ -189,16 +193,22 @@ export interface Project {
 export interface Scope {
   id: string;
   projectId: string;
+  hubId?: string;
+  branchId?: string;
+  lineId?: string;
+  transformerId?: string;
   name: string;
   description?: string;
   status: ScopeStatus;
   plannedKm: number;
   plannedTransformers: number;
   budgetAllocated: number;
-  locationId?: string;
   projectName?: string;
   projectCode?: string;
-  locationName?: string;
+  hubName?: string;
+  branchName?: string;
+  lineName?: string;
+  transformerName?: string;
   createdByName?: string;
   approvedBy?: string;
   approvedAt?: string;
@@ -292,13 +302,16 @@ export interface ProjectFormData {
 
 export interface ScopeFormData {
   projectId: string;
+  hubId?: string;
+  branchId?: string;
+  lineId?: string;
+  transformerId?: string;
   name: string;
   description?: string;
   status: ScopeStatus;
   plannedKm: number;
   plannedTransformers: number;
   budgetAllocated: number;
-  locationId?: string;
 }
 
 export interface TaskFormData {
@@ -379,9 +392,7 @@ export const projectStatusLabels: Record<ProjectStatus, string> = {
 
 export const scopeStatusLabels: Record<ScopeStatus, string> = {
   draft: "Draft",
-  active: "Active",
-  completed: "Completed",
-  cancelled: "Cancelled",
+  approved: "Approved",
 };
 
 export const taskStatusLabels: Record<TaskStatus, string> = {

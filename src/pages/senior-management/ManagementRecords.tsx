@@ -31,6 +31,11 @@ const navItems = [
     icon: <LayoutDashboard className="w-4 h-4" />,
   },
   {
+    label: "Projects & Scopes",
+    path: "/senior-manager/projects",
+    icon: <BookOpen className="w-4 h-4" />,
+  },
+  {
     label: "Published Records",
     path: "/senior-manager/records",
     icon: <BookOpen className="w-4 h-4" />,

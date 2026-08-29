@@ -14,8 +14,9 @@ const router = express.Router();
 router.use(authenticateJWT);
 
 const ENTRY_SELECT = `
-  pe.id, pe.entry_date, pe.location_id, pe.line_id, pe.voltage_level,
+  pe.id, pe.entry_date, pe.location_id, pe.scope_id, pe.line_id, pe.voltage_level,
   pe.transformer_id, pe.progress_pct, pe.transformers_installed,
+  pe.completed_km,
   pe.transformers_terminated, pe.transformers_tested, pe.transformers_commissioned,
   pe.status, pe.site_engineer_id, pe.submitted_at, pe.branch_manager_id,
   pe.approved_at, pe.published_at, pe.rejection_comments,
@@ -32,6 +33,8 @@ function serializeEntry(row) {
     id: row.id,
     entryDate: row.entry_date,
     locationId: row.location_id,
+    scopeId: row.scope_id || undefined,
+    completedKm: Number(row.completed_km || 0),
     lineId: row.line_id,
     voltageLevel: row.voltage_level,
     transformerId: row.transformer_id,
@@ -52,6 +55,23 @@ function serializeEntry(row) {
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
+}
+
+async function getApprovedScopeForUser(scopeId, userId) {
+  const [rows] = await pool.query(
+    `SELECT s.id, s.line_id AS lineId, s.transformer_id AS transformerId,
+            ln.voltage_level AS voltageLevel, s.planned_km AS plannedKm
+     FROM scopes s
+     LEFT JOIN branches b ON s.branch_id = b.id
+     LEFT JOIN \`lines\` ln ON s.line_id = ln.id
+     JOIN users u ON u.id = ?
+     WHERE s.id = ? AND s.status = 'approved'
+       AND (LOWER(TRIM(b.name)) = LOWER(TRIM(u.branch))
+         OR LOWER(TRIM(b.name)) = CONCAT(LOWER(TRIM(u.branch)), ' branch'))
+     LIMIT 1`,
+    [userId, scopeId]
+  );
+  return rows[0] || null;
 }
 
 async function fetchEntryById(id) {
@@ -183,16 +203,23 @@ router.post(
     try {
       const v = req.validated;
       const id = uuidv4();
+      const scope = await getApprovedScopeForUser(v.scopeId, req.user.id);
+      if (!scope) {
+        return res.status(400).json({ error: 'Scope is not approved or is not assigned to your branch.' });
+      }
+      const progressPct = scope.plannedKm > 0
+        ? Math.min(100, (v.completedKm / Number(scope.plannedKm)) * 100)
+        : 0;
       await pool.query(
         `INSERT INTO progress_entries (
-          id, entry_date, location_id, line_id, voltage_level, transformer_id,
+          id, entry_date, location_id, scope_id, line_id, voltage_level, transformer_id,
           progress_pct, transformers_installed, transformers_terminated,
-          transformers_tested, transformers_commissioned, status, site_engineer_id
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'draft', ?)`,
+          transformers_tested, transformers_commissioned, completed_km, status, site_engineer_id
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
-          id, v.entryDate, v.locationId, v.lineId, v.voltageLevel, v.transformerId,
-          v.progressPct, v.transformersInstalled, v.transformersTerminated,
-          v.transformersTested, v.transformersCommissioned, req.user.id,
+          id, v.entryDate, null, v.scopeId, scope.lineId, scope.voltageLevel, scope.transformerId,
+          progressPct, v.transformersInstalled, v.transformersTerminated,
+          v.transformersTested, v.transformersCommissioned, v.completedKm, 'draft', req.user.id,
         ]
       );
       const entry = await fetchEntryById(id);
@@ -240,6 +267,19 @@ router.patch('/:id', validate(progressEntryUpdateSchema), async (req, res, next)
 
     if (v.entryDate !== undefined) { fields.push('entry_date = ?'); params.push(v.entryDate); }
     if (v.locationId !== undefined) { fields.push('location_id = ?'); params.push(v.locationId); }
+    if (v.scopeId !== undefined) {
+      const scope = await getApprovedScopeForUser(v.scopeId, userId);
+      if (!scope) return res.status(400).json({ error: 'Scope is not approved or is not assigned to your branch.' });
+      fields.push('scope_id = ?', 'line_id = ?', 'voltage_level = ?', 'transformer_id = ?');
+      params.push(v.scopeId, scope.lineId, scope.voltageLevel, scope.transformerId);
+    }
+    if (v.completedKm !== undefined) {
+      const scopeId = v.scopeId || (await pool.query('SELECT scope_id FROM progress_entries WHERE id = ? LIMIT 1', [id]))[0][0]?.scope_id;
+      const scope = scopeId ? await pool.query('SELECT planned_km FROM scopes WHERE id = ? LIMIT 1', [scopeId]) : null;
+      const plannedKm = Number(scope?.[0]?.[0]?.planned_km || 0);
+      fields.push('completed_km = ?', 'progress_pct = ?');
+      params.push(v.completedKm, plannedKm > 0 ? Math.min(100, (v.completedKm / plannedKm) * 100) : 0);
+    }
     if (v.lineId !== undefined) { fields.push('line_id = ?'); params.push(v.lineId); }
     if (v.voltageLevel !== undefined) { fields.push('voltage_level = ?'); params.push(v.voltageLevel); }
     if (v.transformerId !== undefined) { fields.push('transformer_id = ?'); params.push(v.transformerId); }

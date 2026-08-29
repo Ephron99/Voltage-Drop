@@ -13,17 +13,24 @@ import {
   Search,
   Wallet,
 } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { useManagementStore } from "@/store/managementStore";
+import { useAuthStore } from "@/store/authStore";
 import { Navbar } from "@/components/Navbar";
 import { projectStatusLabels } from "@/types";
 import type { Project, ProjectStatus, ProjectFormData } from "@/types";
 
-const navItems = [
+const hubNavItems = [
   { label: "Dashboard", path: "/hub-manager", icon: <LayoutDashboard className="w-4 h-4" /> },
   { label: "Projects", path: "/hub-manager/projects", icon: <FolderKanban className="w-4 h-4" /> },
   { label: "Network Assets", path: "/hub-manager/assets", icon: <Network className="w-4 h-4" /> },
   { label: "Progress Monitor", path: "/hub-manager/monitor", icon: <TrendingUp className="w-4 h-4" /> },
+];
+
+const seniorNavItems = [
+  { label: "Executive Dashboard", path: "/senior-manager", icon: <LayoutDashboard className="w-4 h-4" /> },
+  { label: "Projects & Scopes", path: "/senior-manager/projects", icon: <FolderKanban className="w-4 h-4" /> },
+  { label: "Published Records", path: "/senior-manager/records", icon: <TrendingUp className="w-4 h-4" /> },
 ];
 
 const statusColors: Record<ProjectStatus, string> = {
@@ -32,6 +39,18 @@ const statusColors: Record<ProjectStatus, string> = {
   on_hold: "bg-amber-100 text-amber-700",
   completed: "bg-blue-100 text-blue-700",
   cancelled: "bg-rose-100 text-rose-700",
+};
+
+const normalizeDateValue = (value?: string): string => {
+  if (!value) return "";
+  const text = String(value).trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(text)) return text;
+
+  const date = new Date(text);
+  if (Number.isNaN(date.getTime())) return "";
+
+  const adjusted = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+  return adjusted.toISOString().split("T")[0];
 };
 
 const emptyForm: ProjectFormData = {
@@ -45,6 +64,14 @@ const emptyForm: ProjectFormData = {
 };
 
 export default function Projects() {
+  const { user } = useAuthStore();
+  const location = useLocation();
+  const isSeniorManager = user?.role === "senior_manager";
+  const navItems = isSeniorManager ? seniorNavItems : hubNavItems;
+  const portalRole = isSeniorManager ? "senior_manager" : "hub_manager";
+  const projectListRoute = isSeniorManager ? "/senior-manager/projects" : "/hub-manager/projects";
+  const detailRoute = (projectId: string) =>
+    isSeniorManager ? `/senior-manager/projects/${projectId}` : `/hub-manager/projects/${projectId}`;
   const { projects, fetchProjects, createProject, updateProject, deleteProject, loading } = useManagementStore();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("");
@@ -78,8 +105,8 @@ export default function Projects() {
       name: project.name,
       description: project.description || "",
       status: project.status,
-      startDate: project.startDate || "",
-      endDate: project.endDate || "",
+      startDate: normalizeDateValue(project.startDate),
+      endDate: normalizeDateValue(project.endDate),
       totalBudget: project.totalBudget,
     });
     setEditingId(project.id);
@@ -88,10 +115,15 @@ export default function Projects() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const payload = {
+      ...form,
+      startDate: normalizeDateValue(form.startDate),
+      endDate: normalizeDateValue(form.endDate),
+    };
     if (editingId) {
-      await updateProject(editingId, form);
+      await updateProject(editingId, payload);
     } else {
-      await createProject(form);
+      await createProject(payload);
     }
     setShowForm(false);
     setEditingId(null);
@@ -114,7 +146,7 @@ export default function Projects() {
 
   return (
     <div className="min-h-screen bg-electric-grid">
-      <Navbar role="hub_manager" navItems={navItems} title="Hub Manager Portal" />
+      <Navbar role={portalRole} navItems={navItems} title={isSeniorManager ? "Senior Manager Portal" : "Hub Manager Portal"} />
 
       <main className="container py-5 space-y-5">
         <motion.div
@@ -219,7 +251,7 @@ export default function Projects() {
                       </td>
                       <td className="px-4 py-3">
                         <Link
-              to={`/hub-manager/projects/${project.id}`}
+                          to={detailRoute(project.id)}
                           className="text-sm font-semibold text-slate-900 hover:text-violet-700"
                         >
                           {project.name}
@@ -258,7 +290,7 @@ export default function Projects() {
                       <td className="px-4 py-3">
                         <div className="flex items-center justify-center gap-1">
                           <Link
-                to={`/hub-manager/projects/${project.id}`}
+                            to={detailRoute(project.id)}
                             className="p-1.5 rounded-lg text-slate-400 hover:text-violet-700 hover:bg-violet-50 transition-colors"
                             title="View Details"
                           >

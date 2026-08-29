@@ -6,6 +6,7 @@ import Login from "@/pages/Login";
 import ProgressEntryForm from "@/pages/site-engineer/ProgressEntryForm";
 import SubmissionHistory from "@/pages/site-engineer/SubmissionHistory";
 import BranchManagerDashboard from "@/pages/branch-manager/BranchManagerDashboard";
+import ApprovedScopes from "@/pages/branch-manager/ApprovedScopes";
 import ReviewEntry from "@/pages/branch-manager/ReviewEntry";
 import PublishedRecords from "@/pages/branch-manager/PublishedRecords";
 
@@ -143,6 +144,14 @@ export default function App() {
             </ProtectedRoute>
           }
         />
+        <Route
+          path="/branch-manager/scopes"
+          element={
+            <ProtectedRoute allowedRoles={["branch_manager"]}>
+              <ApprovedScopes />
+            </ProtectedRoute>
+          }
+        />
 
         {/* ── Hub Manager Portal ─────────────────────────────────── */}
         <Route
@@ -200,6 +209,30 @@ export default function App() {
           element={
             <ProtectedRoute allowedRoles={["senior_manager", "admin"]}>
               <SeniorManagementDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/senior-manager/projects"
+          element={
+            <ProtectedRoute allowedRoles={["senior_manager", "admin"]}>
+              <Projects />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/senior-manager/projects/:id"
+          element={
+            <ProtectedRoute allowedRoles={["senior_manager", "admin"]}>
+              <ProjectDetail />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/senior-manager/scopes"
+          element={
+            <ProtectedRoute allowedRoles={["senior_manager", "admin"]}>
+              <ApprovedScopes />
             </ProtectedRoute>
           }
         />

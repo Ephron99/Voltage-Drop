@@ -50,6 +50,11 @@ const navItems = [
     icon: <LayoutDashboard className="w-4 h-4" />,
   },
   {
+    label: "Projects & Scopes",
+    path: "/senior-manager/projects",
+    icon: <FileCheck2 className="w-4 h-4" />,
+  },
+  {
     label: "Published Records",
     path: "/senior-manager/records",
     icon: <FileCheck2 className="w-4 h-4" />,
@@ -631,7 +636,7 @@ const progressHistogram = useMemo(() => {
               </div>
             </div>
 
-            <div className="rounded-xl bg-gradient-to-br from-amber-50 via-white to-brand-50 border border-amber-200/60 p-2.5">
+            {/* <div className="rounded-xl bg-gradient-to-br from-amber-50 via-white to-brand-50 border border-amber-200/60 p-2.5">
               <div className="flex items-start gap-2">
                 <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
                 <div className="min-w-0">
@@ -644,7 +649,7 @@ const progressHistogram = useMemo(() => {
                   </p>
                 </div>
               </div>
-            </div>
+            </div> */}
           </motion.div>
         </div>
 

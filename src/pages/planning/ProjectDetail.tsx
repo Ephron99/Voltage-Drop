@@ -51,17 +51,28 @@ import type {
   FundTransactionFormData,
 } from "@/types";
 
-const navItems = [
+const hubNavItems = [
   { label: "Dashboard", path: "/hub-manager", icon: <LayoutDashboard className="w-4 h-4" /> },
   { label: "Projects", path: "/hub-manager/projects", icon: <FolderKanban className="w-4 h-4" /> },
   { label: "Network Assets", path: "/hub-manager/assets", icon: <Network className="w-4 h-4" /> },
   { label: "Progress Monitor", path: "/hub-manager/monitor", icon: <TrendingUp className="w-4 h-4" /> },
 ];
 
+const seniorNavItems = [
+  { label: "Executive Dashboard", path: "/senior-manager", icon: <LayoutDashboard className="w-4 h-4" /> },
+  { label: "Projects & Scopes", path: "/senior-manager/projects", icon: <FolderKanban className="w-4 h-4" /> },
+  { label: "Published Records", path: "/senior-manager/records", icon: <TrendingUp className="w-4 h-4" /> },
+];
+
 type Tab = "scopes" | "tasks" | "budget" | "funds" | "monitor";
 
 export default function ProjectDetail() {
   const { id } = useParams<{ id: string }>();
+  const { user } = useAuthStore();
+  const isSeniorManager = user?.role === "senior_manager";
+  const navItems = isSeniorManager ? seniorNavItems : hubNavItems;
+  const portalRole = isSeniorManager ? "senior_manager" : "hub_manager";
+  const projectListRoute = isSeniorManager ? "/senior-manager/projects" : "/hub-manager/projects";
   const {
     fetchProject,
     fetchScopes,
@@ -88,7 +99,7 @@ export default function ProjectDetail() {
     getFundsByProject,
     monitorData,
   } = useManagementStore();
-  const { locations, lines, transformers, fetchAll } = useMasterDataStore();
+  const { hubs, branches, lines, transformers, fetchAll } = useMasterDataStore();
   const { users, loadUsers } = useAuthStore();
 
   const [activeTab, setActiveTab] = useState<Tab>("scopes");
@@ -138,11 +149,11 @@ export default function ProjectDetail() {
   if (!project) {
     return (
       <div className="min-h-screen bg-electric-grid">
-      <Navbar role="hub_manager" navItems={navItems} title="Hub Manager Portal" />
+      <Navbar role={portalRole} navItems={navItems} title={isSeniorManager ? "Senior Manager Portal" : "Hub Manager Portal"} />
         <div className="container py-20 text-center">
           <FolderKanban className="w-12 h-12 mx-auto mb-3 text-slate-300" />
           <p className="text-sm text-slate-500">Loading project or project not found...</p>
-          <Link to="/hub-manager/projects" className="btn-secondary mt-4">
+          <Link to={projectListRoute} className="btn-secondary mt-4">
             <ArrowLeft className="w-4 h-4" /> Back to Projects
           </Link>
         </div>
@@ -157,11 +168,11 @@ export default function ProjectDetail() {
 
   return (
     <div className="min-h-screen bg-electric-grid">
-      <Navbar role="hub_manager" navItems={navItems} title="Hub Manager Portal" />
+      <Navbar role={portalRole} navItems={navItems} title={isSeniorManager ? "Senior Manager Portal" : "Hub Manager Portal"} />
 
       <main className="container py-5 space-y-5">
         <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
-          <Link to="/hub-manager/projects" className="inline-flex items-center gap-1 text-xs font-semibold text-slate-500 hover:text-violet-700 mb-2">
+          <Link to={projectListRoute} className="inline-flex items-center gap-1 text-xs font-semibold text-slate-500 hover:text-violet-700 mb-2">
             <ArrowLeft className="w-3 h-3" /> Back to Projects
           </Link>
           <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
@@ -203,7 +214,7 @@ export default function ProjectDetail() {
           </div>
         </motion.div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-2">
           <StatCard
             title="Total Budget"
             value={formatCurrency(project.totalBudget)}
@@ -213,7 +224,7 @@ export default function ProjectDetail() {
             iconColor="text-emerald-700"
             delay={0}
           />
-          <StatCard
+          {/* <StatCard
             title="Funds Available"
             value={formatCurrency(fundAvailable)}
             subtitle={`${formatCurrency(fundSummary.totalDisbursed)} disbursed`}
@@ -221,17 +232,17 @@ export default function ProjectDetail() {
             iconBg="bg-amber-50"
             iconColor="text-amber-700"
             delay={0.05}
-          />
+          /> */}
           <StatCard
             title="Scopes"
             value={scopes.length}
-            subtitle={`${scopes.filter((s) => s.status === "active").length} active`}
+            subtitle={`${scopes.filter((s) => s.status === "approved").length} approved`}
             icon={<Target className="w-5 h-5" />}
             iconBg="bg-violet-50"
             iconColor="text-violet-700"
             delay={0.1}
           />
-          <StatCard
+          {/* <StatCard
             title="Tasks"
             value={taskSummary.totalTasks}
             subtitle={`${taskSummary.completedTasks} completed · ${Math.round(taskSummary.avgProgress)}% avg`}
@@ -239,16 +250,16 @@ export default function ProjectDetail() {
             iconBg="bg-blue-50"
             iconColor="text-blue-700"
             delay={0.15}
-          />
+          /> */}
         </div>
 
         <div className="flex items-center gap-1 border-b border-slate-200 overflow-x-auto">
           {([
             { key: "scopes", label: "Scopes", icon: <Target className="w-3.5 h-3.5" /> },
-            { key: "tasks", label: "Tasks", icon: <ListChecks className="w-3.5 h-3.5" /> },
-            { key: "budget", label: "Budget", icon: <Wallet className="w-3.5 h-3.5" /> },
-            { key: "funds", label: "Funds", icon: <DollarSign className="w-3.5 h-3.5" /> },
-            { key: "monitor", label: "Monitor", icon: <TrendingUp className="w-3.5 h-3.5" /> },
+            // { key: "tasks", label: "Tasks", icon: <ListChecks className="w-3.5 h-3.5" /> },
+            // { key: "budget", label: "Budget", icon: <Wallet className="w-3.5 h-3.5" /> },
+            // { key: "funds", label: "Funds", icon: <DollarSign className="w-3.5 h-3.5" /> },
+            // { key: "monitor", label: "Monitor", icon: <TrendingUp className="w-3.5 h-3.5" /> },
           ] as { key: Tab; label: string; icon: React.ReactNode }[]).map((tab) => (
             <button
               key={tab.key}
@@ -276,7 +287,10 @@ export default function ProjectDetail() {
             {activeTab === "scopes" && (
               <ScopesTab
                 scopes={scopes}
-                locations={locations}
+                hubs={hubs}
+                branches={branches}
+                lines={lines}
+                transformers={transformers}
                 projectId={project.id}
                 showForm={showScopeForm}
                 setShowForm={setShowScopeForm}
@@ -354,7 +368,10 @@ export default function ProjectDetail() {
 // ============================================================
 function ScopesTab({
   scopes,
-  locations,
+  hubs,
+  branches,
+  lines,
+  transformers,
   projectId,
   showForm,
   setShowForm,
@@ -366,7 +383,10 @@ function ScopesTab({
   deleteScope,
 }: {
   scopes: Scope[];
-  locations: { id: string; name: string }[];
+  hubs: { id: string; name: string }[];
+  branches: { id: string; name: string; hubId: string }[];
+  lines: { id: string; name: string; branchId: string }[];
+  transformers: { id: string; name: string; lineId: string }[];
   projectId: string;
   showForm: boolean;
   setShowForm: (v: boolean) => void;
@@ -379,42 +399,84 @@ function ScopesTab({
 }) {
   const [form, setForm] = useState<ScopeFormData>({
     projectId,
+    hubId: "",
+    branchId: "",
+    lineId: "",
+    transformerId: "",
     name: "",
     description: "",
     status: "draft",
     plannedKm: 0,
     plannedTransformers: 0,
     budgetAllocated: 0,
-    locationId: "",
   });
+
+  const visibleBranches = form.hubId ? branches.filter((branch) => branch.hubId === form.hubId) : branches;
+  const visibleLines = form.branchId ? lines.filter((line) => line.branchId === form.branchId) : lines;
+  const visibleTransformers = form.lineId ? transformers.filter((transformer) => transformer.lineId === form.lineId) : [];
 
   const handleOpen = (scope?: Scope) => {
     if (scope) {
       setForm({
         projectId,
+        hubId: scope.hubId || "",
+        branchId: scope.branchId || "",
+        lineId: scope.lineId || "",
+        transformerId: scope.transformerId || "",
         name: scope.name,
         description: scope.description || "",
         status: scope.status,
         plannedKm: scope.plannedKm,
         plannedTransformers: scope.plannedTransformers,
         budgetAllocated: scope.budgetAllocated,
-        locationId: scope.locationId || "",
       });
       setEditingId(scope.id);
     } else {
       setForm({
         projectId,
+        hubId: "",
+        branchId: "",
+        lineId: "",
+        transformerId: "",
         name: "",
         description: "",
         status: "draft",
         plannedKm: 0,
         plannedTransformers: 0,
         budgetAllocated: 0,
-        locationId: "",
       });
       setEditingId(null);
     }
     setShowForm(true);
+  };
+
+  const handleHubChange = (hubId: string) => {
+    setForm((prev) => ({
+      ...prev,
+      hubId,
+      branchId: prev.branchId && branches.some((branch) => branch.id === prev.branchId && branch.hubId === hubId)
+        ? prev.branchId
+        : "",
+      lineId: "",
+      transformerId: "",
+    }));
+  };
+
+  const handleBranchChange = (branchId: string) => {
+    setForm((prev) => ({
+      ...prev,
+      branchId,
+      lineId: "",
+      transformerId: "",
+    }));
+  };
+
+  const handleLineChange = (lineId: string) => {
+    setForm((prev) => ({
+      ...prev,
+      lineId,
+      transformerId: "",
+    }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -459,9 +521,7 @@ function ScopesTab({
                   )}
                 </div>
                 <span className={`status-pill ${
-                  scope.status === "active" ? "bg-emerald-100 text-emerald-700" :
-                  scope.status === "completed" ? "bg-blue-100 text-blue-700" :
-                  scope.status === "cancelled" ? "bg-rose-100 text-rose-700" :
+                  scope.status === "approved" ? "bg-emerald-100 text-emerald-700" :
                   "bg-slate-100 text-slate-700"
                 }`}>
                   {scopeStatusLabels[scope.status]}
@@ -483,9 +543,12 @@ function ScopesTab({
                   </p>
                 </div>
               </div>
-              {scope.locationName && (
-                <p className="text-[10px] text-slate-500">📍 {scope.locationName}</p>
-              )}
+              <div className="flex flex-wrap gap-2 text-[10px] text-slate-500">
+                {scope.hubName && <span>🏢 {scope.hubName}</span>}
+                {scope.branchName && <span>🔀 {scope.branchName}</span>}
+                {scope.lineName && <span>⚡ {scope.lineName}</span>}
+                {scope.transformerName && <span>🔧 {scope.transformerName}</span>}
+              </div>
               <div className="flex items-center gap-1 pt-1">
                 {scope.status === "draft" && (
                   <button
@@ -536,18 +599,64 @@ function ScopesTab({
                   className="input-field min-h-[50px] resize-none"
                 />
               </div>
-              <div>
-                <label className="input-label">Location</label>
-                <select
-                  value={form.locationId}
-                  onChange={(e) => setForm({ ...form, locationId: e.target.value })}
-                  className="input-field"
-                >
-                  <option value="">Select location...</option>
-                  {locations.map((loc) => (
-                    <option key={loc.id} value={loc.id}>{loc.name}</option>
-                  ))}
-                </select>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="input-label">Hub</label>
+                  <select
+                    value={form.hubId}
+                    onChange={(e) => handleHubChange(e.target.value)}
+                    className="input-field"
+                  >
+                    <option value="">Select hub...</option>
+                    {hubs.map((hub) => (
+                      <option key={hub.id} value={hub.id}>{hub.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="input-label">Branch</label>
+                  <select
+                    value={form.branchId}
+                    onChange={(e) => handleBranchChange(e.target.value)}
+                    className="input-field"
+                    disabled={!form.hubId}
+                  >
+                    <option value="">{form.hubId ? "Select branch..." : "Select a hub first"}</option>
+                    {visibleBranches.map((branch) => (
+                      <option key={branch.id} value={branch.id}>{branch.name}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="input-label">MV Line</label>
+                  <select
+                    value={form.lineId}
+                    onChange={(e) => handleLineChange(e.target.value)}
+                    className="input-field"
+                    disabled={!form.branchId}
+                  >
+                    <option value="">{form.branchId ? "Select MV line..." : "Select a branch first"}</option>
+                    {visibleLines.map((line) => (
+                      <option key={line.id} value={line.id}>{line.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="input-label">TRSFO</label>
+                  <select
+                    value={form.transformerId}
+                    onChange={(e) => setForm({ ...form, transformerId: e.target.value })}
+                    className="input-field"
+                    disabled={!form.lineId}
+                  >
+                    <option value="">{form.lineId ? "Select transformer..." : "Select an MV line first"}</option>
+                    {visibleTransformers.map((transformer) => (
+                      <option key={transformer.id} value={transformer.id}>{transformer.name}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
               <div className="grid grid-cols-3 gap-2">
                 <div>
@@ -1438,8 +1547,7 @@ function MonitorTab({
                     <div className="flex items-center justify-between mb-1.5">
                       <span className="text-xs font-bold text-slate-900">{scope.name}</span>
                       <span className={`status-pill ${
-                        scope.status === "active" ? "bg-emerald-100 text-emerald-700" :
-                        scope.status === "completed" ? "bg-blue-100 text-blue-700" :
+                        scope.status === "approved" ? "bg-emerald-100 text-emerald-700" :
                         "bg-slate-100 text-slate-700"
                       }`}>
                         {scopeStatusLabels[scope.status]}

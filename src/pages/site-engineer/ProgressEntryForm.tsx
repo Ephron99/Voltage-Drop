@@ -6,7 +6,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   FileEdit,
   CalendarDays,
-  MapPin,
   Power,
   Gauge,
   Zap,
@@ -28,6 +27,7 @@ import type { VoltageLevel, ProgressFormData } from "@/types";
 import { useAuthStore } from "@/store/authStore";
 import { useProgressStore } from "@/store/progressStore";
 import { useMasterDataStore } from "@/store/masterDataStore";
+import { useManagementStore } from "@/store/managementStore";
 import { Navbar } from "@/components/Navbar";
 
 const navItems = [
@@ -51,7 +51,8 @@ const navItems = [
 const progressSchema = z
   .object({
     entryDate: z.string().nonempty("Entry date is required"),
-    locationId: z.string().nonempty("Please select a location"),
+    scopeId: z.string().nonempty("Please select an approved scope"),
+    completedKm: z.number({ invalid_type_error: "Must be a number" }).min(0, "Cannot be negative"),
     lineId: z.string().nonempty("Please select a line"),
     voltageLevel: z.enum(["MV", "LV"]),
     transformerId: z.string().nonempty("Please select a transformer"),
@@ -119,8 +120,8 @@ export default function ProgressEntryForm() {
   const { id } = useParams();
   const { user } = useAuthStore();
   const { addEntry, updateEntry, submitEntry, getEntryById, fetchEntry } = useProgressStore();
+  const { scopes, fetchScopes } = useManagementStore();
   const {
-    locations,
     hubs,
     branches,
     getBranchesByHub,
@@ -132,6 +133,10 @@ export default function ProgressEntryForm() {
     fetchAll,
     initialized: masterInitialized,
   } = useMasterDataStore();
+
+  useEffect(() => {
+    fetchScopes();
+  }, [fetchScopes]);
 
   useEffect(() => {
     if (!masterInitialized) {
@@ -161,7 +166,8 @@ export default function ProgressEntryForm() {
     resolver: zodResolver(progressSchema),
     defaultValues: {
       entryDate: todayStr,
-      locationId: "",
+      scopeId: "",
+      completedKm: 0,
       lineId: "",
       voltageLevel: "MV",
       transformerId: "",
@@ -177,7 +183,8 @@ export default function ProgressEntryForm() {
     if (editingEntry) {
       reset({
         entryDate: editingEntry.entryDate,
-        locationId: editingEntry.locationId,
+        scopeId: editingEntry.scopeId || "",
+        completedKm: editingEntry.completedKm || 0,
         lineId: editingEntry.lineId,
         voltageLevel: editingEntry.voltageLevel,
         transformerId: editingEntry.transformerId,
@@ -190,12 +197,44 @@ export default function ProgressEntryForm() {
     }
   }, [editingEntry, reset]);
 
-  const selectedLocationId = watch("locationId");
+  const selectedScopeId = watch("scopeId");
+  const completedKm = watch("completedKm");
   const selectedLineId = watch("lineId");
   const selectedVoltage = watch("voltageLevel");
+  const selectedScope = useMemo(
+    () => scopes.find((scope) => scope.id === selectedScopeId),
+    [scopes, selectedScopeId]
+  );
+
+  const assignedScopes = useMemo(() => {
+    const branchName = user?.branch?.trim().toLowerCase();
+    const branchId = branches.find((branch) => {
+      const name = branch.name.trim().toLowerCase();
+      return name === branchName || name === `${branchName} branch`;
+    })?.id;
+    return scopes.filter((scope) => {
+      if (scope.status !== "approved") return false;
+      if (branchName) return scope.branchId === branchId || scope.branchName?.trim().toLowerCase() === branchName || scope.branchName?.trim().toLowerCase() === `${branchName} branch`;
+      return scope.hubId === user?.hubId;
+    });
+  }, [scopes, branches, user]);
 
   const [selectedHubId, setSelectedHubId] = useState<string>("");
   const [selectedBranchId, setSelectedBranchId] = useState<string>("");
+
+  useEffect(() => {
+    if (!selectedScope) return;
+    setSelectedHubId(selectedScope.hubId || "");
+    setSelectedBranchId(selectedScope.branchId || "");
+    setValue("lineId", selectedScope.lineId || "", { shouldDirty: true });
+    setValue("transformerId", selectedScope.transformerId || "", { shouldDirty: true });
+    setValue("voltageLevel", getLineById(selectedScope.lineId || "")?.voltageLevel || "MV", { shouldDirty: true });
+  }, [selectedScope, getLineById, setValue]);
+
+  useEffect(() => {
+    const plannedKm = Number(selectedScope?.plannedKm || 0);
+    setValue("progressPct", plannedKm > 0 ? Math.min(100, (Number(completedKm || 0) / plannedKm) * 100) : 0, { shouldDirty: true });
+  }, [completedKm, selectedScope, setValue]);
 
   useEffect(() => {
     if (editingEntry && editingEntry.lineId && masterInitialized) {
@@ -222,29 +261,6 @@ export default function ProgressEntryForm() {
   const availableTransformers = useMemo(() => {
     return selectedLineId ? getTransformersByLine(selectedLineId) : [];
   }, [selectedLineId, getTransformersByLine]);
-
-  useEffect(() => {
-    setSelectedBranchId("");
-    setValue("lineId", "", { shouldDirty: true });
-    setValue("transformerId", "", { shouldDirty: true });
-  }, [selectedHubId, setValue]);
-
-  useEffect(() => {
-    setValue("lineId", "", { shouldDirty: true });
-    setValue("transformerId", "", { shouldDirty: true });
-  }, [selectedBranchId, selectedVoltage, setValue]);
-
-  useEffect(() => {
-    if (selectedBranchId && selectedVoltage) {
-      const lines = getLinesByBranch(selectedBranchId).filter(
-        (l) => l.voltageLevel === selectedVoltage
-      );
-      if (!lines.find((l) => l.id === selectedLineId)) {
-        setValue("lineId", "", { shouldDirty: true });
-        setValue("transformerId", "", { shouldDirty: true });
-      }
-    }
-  }, [selectedVoltage, selectedBranchId, selectedLineId, getLinesByBranch, setValue]);
 
   useEffect(() => {
     const transformers = getTransformersByLine(selectedLineId);
@@ -515,30 +531,33 @@ export default function ProgressEntryForm() {
                 </div>
               </div>
 
-              <div>
+              <div className="sm:col-span-2">
                 <label className="input-label">
                   <span className="flex items-center gap-1.5">
-                    <MapPin className="w-3.5 h-3.5" />
-                    Site Location
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    Approved Scope
                   </span>
                 </label>
-                <select
-                  className="input-field"
-                  disabled={isLocked}
-                  {...register("locationId")}
-                >
-                  <option value="">— Select a site location —</option>
-                  {locations.map((loc) => (
-                    <option key={loc.id} value={loc.id}>
-                      {loc.name} — {loc.governorate}
+                <select className="input-field" disabled={isLocked} {...register("scopeId")}>
+                  <option value="">— Select an approved scope —</option>
+                  {assignedScopes.map((scope) => (
+                    <option key={scope.id} value={scope.id}>
+                      {scope.name} · {scope.branchName || "Assigned branch"} · Planned {scope.plannedKm} km
                     </option>
                   ))}
                 </select>
-                {errors.locationId && (
+                {errors.scopeId && (
                   <p className="text-xs text-rose-600 mt-1 flex items-center gap-1">
                     <AlertCircle className="w-3 h-3" />
-                    {errors.locationId.message}
+                    {errors.scopeId.message}
                   </p>
+                )}
+                {selectedScope && (
+                  <div className="mt-2 flex flex-wrap gap-3 text-xs text-slate-600">
+                    <span>Project: <b>{selectedScope.projectName || "—"}</b></span>
+                    <span>Planned KM: <b>{Number(selectedScope.plannedKm || 0).toFixed(3)}</b></span>
+                    <span>Planned transformers: <b>{selectedScope.plannedTransformers}</b></span>
+                  </div>
                 )}
               </div>
 
@@ -562,6 +581,29 @@ export default function ProgressEntryForm() {
                     </option>
                   ))}
                 </select>
+              </div>
+
+              <div>
+                <label className="input-label">Completed KM</label>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.001"
+                  className="input-field"
+                  disabled={isLocked || !selectedScope}
+                  {...register("completedKm", { valueAsNumber: true })}
+                />
+                {selectedScope && (
+                  <p className="text-xs text-slate-500 mt-1">
+                    {Number(completedKm || 0).toFixed(3)} of {Number(selectedScope.plannedKm || 0).toFixed(3)} km completed
+                  </p>
+                )}
+                {errors.completedKm && (
+                  <p className="text-xs text-rose-600 mt-1 flex items-center gap-1">
+                    <AlertCircle className="w-3 h-3" />
+                    {errors.completedKm.message}
+                  </p>
+                )}
               </div>
 
               <div>
@@ -718,7 +760,8 @@ export default function ProgressEntryForm() {
                     min="0"
                     max="100"
                     className="input-field !text-xl !font-display !font-bold !text-brand-900 !py-3.5 pr-14"
-                    disabled={isLocked}
+                    readOnly
+                    disabled={isLocked || !selectedScope}
                     {...register("progressPct", { valueAsNumber: true })}
                   />
                   <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-bold text-brand-700">

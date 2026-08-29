@@ -28,6 +28,7 @@ import { Link } from "react-router-dom";
 import { useAuthStore } from "@/store/authStore";
 import { useProgressStore } from "@/store/progressStore";
 import { useMasterDataStore } from "@/store/masterDataStore";
+import { useManagementStore } from "@/store/managementStore";
 import { useHubStore } from "@/store/hubStore";
 import { Navbar } from "@/components/Navbar";
 import { StatCard } from "@/components/StatCard";
@@ -50,8 +51,13 @@ const navItems = [
     icon: <History className="w-4 h-4" />,
   },
   {
+    label: "Approved Scopes",
+    path: "/branch-manager/scopes",
+    icon: <CheckCircle2 className="w-4 h-4" />,
+  },
+  {
     label: "Pending Reviews",
-    path: "/branch-manager",
+    path: "/branch-manager#pending",
     icon: <ClipboardList className="w-4 h-4" />,
   },
   {
@@ -64,14 +70,20 @@ const navItems = [
 export default function BranchManagerDashboard() {
   const { user } = useAuthStore();
   const rawEntries = useProgressStore((s) => s.entries);
-  const { getLocationName, getLineName } = useMasterDataStore();
+  const scopes = useManagementStore((s) => s.scopes);
+  const { getLocationName, getLineName, branches } = useMasterDataStore();
   const { fetchEntries } = useProgressStore();
+  const { fetchScopes } = useManagementStore();
   const { fetchAll, initialized: masterInitialized } = useMasterDataStore();
   const { fetchHubs, getHubName, initialized: hubsInitialized } = useHubStore();
 
   useEffect(() => {
     fetchEntries();
   }, [fetchEntries]);
+
+  useEffect(() => {
+    fetchScopes();
+  }, [fetchScopes]);
 
   useEffect(() => {
     if (!masterInitialized) fetchAll();
@@ -116,6 +128,34 @@ export default function BranchManagerDashboard() {
             new Date(b.submittedAt || b.createdAt).getTime()
         ),
     [rawEntries]
+  );
+
+  const branchApprovedScopes = useMemo(
+    () => {
+      const branchName = user?.branch?.trim().toLowerCase();
+      const branchId = branches.find(
+        (branch) => {
+          const masterBranchName = branch.name.trim().toLowerCase();
+          return (
+            masterBranchName === branchName ||
+            masterBranchName === `${branchName} branch`
+          );
+        }
+      )?.id;
+
+      return scopes.filter((scope) => {
+        if (scope.status !== "approved") return false;
+        if (branchName) {
+          return (
+            scope.branchId === branchId ||
+            scope.branchName?.trim().toLowerCase() === branchName ||
+            scope.branchName?.trim().toLowerCase() === `${branchName} branch`
+          );
+        }
+        return scope.hubId === user?.hubId;
+      });
+    },
+    [scopes, user, branches]
   );
 
   const publishedRecent = useMemo(
@@ -181,6 +221,10 @@ export default function BranchManagerDashboard() {
           )}
         </motion.div>
 
+        
+          <h2 className="font-display text-lg font-bold text-slate-900">
+                  Summary overview
+                </h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           <StatCard
             title="Pending Review"
@@ -219,7 +263,46 @@ export default function BranchManagerDashboard() {
             delay={0.2}
           /> */}
         </div>
+        
+        <motion.section
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.15 }}
+          className="card p-5"
+        >
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div>
+              <h2 className="font-display text-lg font-bold text-slate-900">Assigned Approved Scopes</h2>
+              <p className="text-sm text-slate-500">Approved work packages ready for branch execution and reporting</p>
+            </div>
+            <Link to="/branch-manager/scopes" className="btn-secondary text-sm">
+              View All
+              <ArrowRight className="w-4 h-4" />
+            </Link>
+          </div>
 
+          <div className="mt-4 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+            {branchApprovedScopes.length === 0 ? (
+              <div className="col-span-full rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">
+                No approved scopes assigned to this branch yet.
+              </div>
+            ) : (
+              branchApprovedScopes.slice(0, 3).map((scope) => (
+                <div key={scope.id} className="rounded-2xl border border-emerald-200 bg-emerald-50/40 p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="font-semibold text-slate-800 leading-tight">{scope.name}</p>
+                    <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 text-[10px] font-bold uppercase">Approved</span>
+                  </div>
+                  <p className="mt-2 text-xs text-slate-600">{scope.branchName || "Branch scope"}</p>
+                  <div className="mt-3 flex items-center justify-between text-[11px] text-slate-600">
+                    <span>{scope.lineName || "Line —"}</span>
+                    <span>{scope.transformerName || "TRSFO —"}</span>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </motion.section>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -305,33 +388,33 @@ export default function BranchManagerDashboard() {
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               {[
-                {
-                  label: "Unique Engineers",
-                  value: 2,
-                  icon: <Users className="w-4 h-4" />,
-                  bg: "bg-violet-50",
-                  color: "text-violet-700",
-                },
-                {
-                  label: "Active Locations",
-                  value: 5,
-                  icon: <ShieldCheck className="w-4 h-4" />,
-                  bg: "bg-orange-50",
-                  color: "text-orange-700",
-                },
-                {
-                  label: "Rejection Rate",
-                  value:
-                    stats.published + stats.rejected > 0
-                      ? `${(
-                          (stats.rejected / (stats.published + stats.rejected)) *
-                          100
-                        ).toFixed(0)}%`
-                      : "0%",
-                  icon: <Send className="w-4 h-4" />,
-                  bg: "bg-slate-100",
-                  color: "text-slate-700",
-                },
+                // {
+                //   label: "Unique Engineers",
+                //   value: 2,
+                //   icon: <Users className="w-4 h-4" />,
+                //   bg: "bg-violet-50",
+                //   color: "text-violet-700",
+                // },
+                // {
+                //   label: "Active Locations",
+                //   value: 5,
+                //   icon: <ShieldCheck className="w-4 h-4" />,
+                //   bg: "bg-orange-50",
+                //   color: "text-orange-700",
+                // },
+                // {
+                //   label: "Rejection Rate",
+                //   value:
+                //     stats.published + stats.rejected > 0
+                //       ? `${(
+                //           (stats.rejected / (stats.published + stats.rejected)) *
+                //           100
+                //         ).toFixed(0)}%`
+                //       : "0%",
+                //   icon: <Send className="w-4 h-4" />,
+                //   bg: "bg-slate-100",
+                //   color: "text-slate-700",
+                // },
               ].map((m, i) => (
                 <motion.div
                   key={m.label}

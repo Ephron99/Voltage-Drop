@@ -41,7 +41,9 @@ const resetPasswordSchema = z.object({
 
 const progressEntrySchema = z.object({
   entryDate: z.string().refine((v) => !isNaN(Date.parse(v)), 'Invalid entryDate'),
-  locationId: z.string().min(1, 'locationId is required'),
+  locationId: z.string().min(1).optional(),
+  scopeId: z.string().min(1, 'scopeId is required'),
+  completedKm: z.number().gte(0, 'completedKm must be >= 0'),
   lineId: z.string().min(1, 'lineId is required'),
   voltageLevel: VOLTAGE_LEVEL_ENUM,
   transformerId: z.string().min(1, 'transformerId is required'),
@@ -58,7 +60,9 @@ const progressEntryUpdateSchema = z
       .string()
       .refine((v) => !isNaN(Date.parse(v)), 'Invalid entryDate')
       .optional(),
-    locationId: z.string().min(1, 'locationId is required').optional(),
+    locationId: z.string().min(1).optional(),
+    scopeId: z.string().min(1).optional(),
+    completedKm: z.number().gte(0, 'completedKm must be >= 0').optional(),
     lineId: z.string().min(1, 'lineId is required').optional(),
     voltageLevel: VOLTAGE_LEVEL_ENUM.optional(),
     transformerId: z.string().min(1, 'transformerId is required').optional(),

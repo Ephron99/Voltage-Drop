@@ -43,6 +43,39 @@ interface ListParams {
   [key: string]: unknown;
 }
 
+const normalizeOptionalId = (value?: string | null): string | null => {
+  if (value === undefined || value === null) return null;
+  const text = String(value).trim();
+  return text === "" ? null : text;
+};
+
+const normalizeDateValue = (value?: string): string => {
+  if (!value) return "";
+  const text = String(value).trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(text)) return text;
+
+  const date = new Date(text);
+  if (Number.isNaN(date.getTime())) return "";
+
+  const adjusted = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+  return adjusted.toISOString().split("T")[0];
+};
+
+const normalizeProjectDates = <T extends Partial<ProjectFormData>>(data: T): T => ({
+  ...data,
+  startDate: data.startDate ? normalizeDateValue(data.startDate) : "",
+  endDate: data.endDate ? normalizeDateValue(data.endDate) : "",
+});
+
+const normalizeScopePayload = <T extends Partial<ScopeFormData>>(data: T): T => ({
+  ...data,
+  projectId: data.projectId || null,
+  hubId: normalizeOptionalId(data.hubId) || undefined,
+  branchId: normalizeOptionalId(data.branchId) || undefined,
+  lineId: normalizeOptionalId(data.lineId) || undefined,
+  transformerId: normalizeOptionalId(data.transformerId) || undefined,
+});
+
 const api: AxiosInstance = axios.create({
   baseURL: import.meta.env.VITE_API_URL || "http://localhost:4000/api",
   timeout: 15000,
@@ -256,12 +289,14 @@ export const managementApi = {
   },
 
   createProject: async (data: ProjectFormData): Promise<Project> => {
-    const response = await api.post<ApiResponse<Project>>("/management/projects", data);
+    const payload = normalizeProjectDates(data);
+    const response = await api.post<ApiResponse<Project>>("/management/projects", payload);
     return response.data.data;
   },
 
   updateProject: async (id: string, data: Partial<ProjectFormData>): Promise<Project> => {
-    const response = await api.patch<ApiResponse<Project>>(`/management/projects/${id}`, data);
+    const payload = normalizeProjectDates(data);
+    const response = await api.patch<ApiResponse<Project>>(`/management/projects/${id}`, payload);
     return response.data.data;
   },
 
@@ -276,12 +311,14 @@ export const managementApi = {
   },
 
   createScope: async (data: ScopeFormData): Promise<Scope> => {
-    const response = await api.post<ApiResponse<Scope>>("/management/scopes", data);
+    const payload = normalizeScopePayload(data);
+    const response = await api.post<ApiResponse<Scope>>("/management/scopes", payload);
     return response.data.data;
   },
 
   updateScope: async (id: string, data: Partial<ScopeFormData>): Promise<Scope> => {
-    const response = await api.patch<ApiResponse<Scope>>(`/management/scopes/${id}`, data);
+    const payload = normalizeScopePayload(data);
+    const response = await api.patch<ApiResponse<Scope>>(`/management/scopes/${id}`, payload);
     return response.data.data;
   },
 
